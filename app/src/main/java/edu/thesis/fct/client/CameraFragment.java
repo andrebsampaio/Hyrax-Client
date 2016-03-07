@@ -43,8 +43,8 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
@@ -60,9 +60,19 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
+
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -244,7 +254,7 @@ public class CameraFragment extends Fragment
 
         @Override
         public void onImageAvailable(ImageReader reader) {
-            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile));
+            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile,getActivity()));
         }
 
     };
@@ -908,14 +918,16 @@ public class CameraFragment extends Fragment
          */
         private final File mFile;
 
-        public ImageSaver(Image image, File file) {
+        private final Activity activity;
+
+        public ImageSaver(Image image, File file, Activity activity) {
             mImage = image;
             mFile = file;
+            this.activity = activity;
         }
 
         @Override
         public void run() {
-            Log.d("STORAGE","IM HEREEEEEE1");
             ByteBuffer buffer = mImage.getPlanes()[0].getBuffer();
             byte[] bytes = new byte[buffer.remaining()];
             buffer.get(bytes);
@@ -927,7 +939,21 @@ public class CameraFragment extends Fragment
                 }
                 output = new FileOutputStream(mFile);
                 output.write(bytes);
-                Log.d("STORAGE", "IM HEREEEEEE2");
+                Log.d("UPLOAD", "HEREE");
+
+                class uploadAsync implements Runnable {
+                    byte [] b;
+                    uploadAsync(byte [] b){
+                        this.b = b;
+                    }
+                    public void run(){
+                        new UploadImageTask().execute(b);
+                    }
+                }
+
+                activity.runOnUiThread(new uploadAsync(bytes));
+
+
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {
@@ -935,13 +961,13 @@ public class CameraFragment extends Fragment
                 if (null != output) {
                     try {
                         output.close();
+
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                 }
             }
         }
-
     }
 
     /**
