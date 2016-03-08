@@ -1,6 +1,7 @@
 package edu.thesis.fct.client;
 
 import android.app.Activity;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,12 +19,7 @@ public class GridViewAdapter extends BaseAdapter {
     public GridViewAdapter(Activity context)
     {
         inflater = LayoutInflater.from(context);
-
-        items.add(new Item("Image 1", R.drawable.image1));
-        items.add(new Item("Image 2", R.drawable.image2));
-        items.add(new Item("Image 3", R.drawable.image3));
-        items.add(new Item("Image 4", R.drawable.image4));
-        items.add(new Item("Image 5", R.drawable.image1));
+        items.add(new Item("http://10.22.107.60:8080/hyrax-server/rest/images/potato1457456814756"));
     }
 
     @Override
@@ -40,42 +36,49 @@ public class GridViewAdapter extends BaseAdapter {
     @Override
     public long getItemId(int i)
     {
-        return items.get(i).drawableId;
+        return items.get(i).id;
     }
 
     @Override
     public View getView(int i, View view, ViewGroup viewGroup)
     {
         View v = view;
-        ImageView picture;
-        TextView name;
+        WebImageView picture;
 
         if(v == null)
         {
             v = inflater.inflate(R.layout.grid_item_layout, viewGroup, false);
             v.setTag(R.id.picture, v.findViewById(R.id.picture));
-            v.setTag(R.id.text, v.findViewById(R.id.text));
         }
 
-        picture = (ImageView)v.getTag(R.id.picture);
-        name = (TextView)v.getTag(R.id.text);
+        picture = (WebImageView)v.getTag(R.id.picture);
 
         Item item = (Item)getItem(i);
 
-        picture.setImageResource(item.drawableId);
+        picture.setPlaceholderImage(android.R.drawable.gallery_thumb);
+        picture.setImageUrl(item.url);
+
 
         return v;
     }
 
     private class Item
     {
-        final String name;
-        final int drawableId;
+        final String url;
+        final long id;
 
-        Item(String name, int drawableId)
+        Item(String url)
         {
-            this.name = name;
-            this.drawableId = drawableId;
+            this.url = url;
+            this.id = hash(url);
         }
+    }
+
+    public static int hash(String s) {
+        int h = 0;
+        for (int i = 0; i < s.length(); i++) {
+            h = 31 * h + s.charAt(i);
+        }
+        return h;
     }
 }
