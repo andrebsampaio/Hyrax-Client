@@ -33,7 +33,7 @@ public class UploadImageTask extends AsyncTask<byte [], Void, Void> {
         HttpURLConnection httpUrlConnection = null;
         URL url = null;
         try {
-            url = new URL("http://10.22.107.60:8080/hyrax-server/rest/upload");
+            url = new URL("http://192.168.1.243:8080/hyrax-server/rest/upload");
             httpUrlConnection = (HttpURLConnection) url.openConnection();
             httpUrlConnection.setUseCaches(false);
             httpUrlConnection.setDoOutput(true);
@@ -51,7 +51,7 @@ public class UploadImageTask extends AsyncTask<byte [], Void, Void> {
             request.writeBytes(twoHyphens + boundary + crlf);
             request.writeBytes("Content-Disposition: form-data; name=\"" + details + "\"" + crlf);
             request.writeBytes(crlf);
-            request.writeBytes("{\"id\" : \"balake\", \"location\" : \"potato\", \"time\" :" + System.currentTimeMillis() + "}" + crlf);
+            request.writeBytes("{ \"location\" : \"potato\", \"time\" :" + System.currentTimeMillis() + "}" + crlf);
 
             request.writeBytes(crlf);
 

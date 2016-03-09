@@ -451,7 +451,7 @@ public class CameraFragment extends Fragment
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        mFile = new File(getActivity().getExternalFilesDir(null), "pic.jpg");
+        mFile = new File(getActivity().getExternalFilesDir(null), System.currentTimeMillis() + ".jpg");
     }
 
 
@@ -853,7 +853,7 @@ public class CameraFragment extends Fragment
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session,
                                                @NonNull CaptureRequest request,
                                                @NonNull TotalCaptureResult result) {
-                    showToast("Saved: " + mFile);
+                    showToast("Photo stored and uploaded");
                     Log.d(TAG, mFile.toString());
                     unlockFocus();
                 }
