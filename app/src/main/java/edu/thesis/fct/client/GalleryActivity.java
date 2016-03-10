@@ -44,6 +44,8 @@ public class GalleryActivity extends Activity {
     List<Integer> ids;
     RecyclerView recyclerView;
     Activity activity;
+    String imagesURL;
+    GalleryAdapter mAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,8 +55,15 @@ public class GalleryActivity extends Activity {
         String value = intent.getStringExtra("face");
         activity = this;
         setContentView(R.layout.gallery_layout);
-        String url = "http://192.168.1.243:8080/hyrax-server/rest/images";
-        getImages(url);
+
+        NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
+        imagesURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/images/";
+        recyclerView = (RecyclerView) findViewById(R.id.image_grid);
+        recyclerView.setLayoutManager(new GridLayoutManager(activity, 3));
+        recyclerView.setHasFixedSize(true); // Helps improve performance
+        mAdapter = new GalleryAdapter(activity,imagesURL);
+        recyclerView.setAdapter(mAdapter);
+        getImages(imagesURL);
     }
 
     private void getImages(String url){
@@ -63,22 +72,25 @@ public class GalleryActivity extends Activity {
 
                     @Override
                     public void onResponse(JSONObject response) {
+                        ids = new ArrayList<>();
                         try {
-                            ids = new ArrayList<>();
-                            JSONArray ja = response.getJSONArray("imageDAO");
-                            for (int i = 0; i < ja.length(); i++){
-                                JSONObject jsonObject = ja.getJSONObject(i);
-                                ids.add(Integer.parseInt(jsonObject.optString("id").toString()));
-                            }
-                            recyclerView = (RecyclerView) findViewById(R.id.image_grid);
-                            recyclerView.setLayoutManager(new GridLayoutManager(activity, 3));
-                            recyclerView.setHasFixedSize(true); // Helps improve performance
-                            GalleryAdapter mAdapter = new GalleryAdapter(activity, ids);
-                            recyclerView.setAdapter(mAdapter);
-
-                        } catch (JSONException e) {
-                            e.printStackTrace();
+                            JSONObject object = new JSONObject("imageDAO");
+                            ids.add(object.optInt("id"));
                         }
+                        catch (JSONException e1) {
+                            try {
+                                JSONArray ja = response.getJSONArray("imageDAO");
+                                for (int i = 0; i < ja.length(); i++){
+                                    JSONObject jsonObject = ja.getJSONObject(i);
+                                    ids.add(Integer.parseInt(jsonObject.optString("id").toString()));
+                                }
+                                mAdapter.setData(ids);
+
+                            } catch (JSONException e2) {
+                                e2.printStackTrace();
+                            }
+                        }
+
                         System.out.println("Response: " + response.toString());
 
                     }

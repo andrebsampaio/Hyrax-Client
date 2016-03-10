@@ -20,11 +20,19 @@ import java.util.List;
 public class GalleryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     Context context;
     List<Integer> data = new ArrayList<>();
-    String url = "http://192.168.1.243:8080/hyrax-server/rest/images/";
+    String url;
 
-    public GalleryAdapter(Context context, List<Integer> data) {
+    public GalleryAdapter(Context context, String url) {
+        NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
         this.context = context;
-        this.data = data;
+        data = new ArrayList<>();
+        this.url = url;
+    }
+
+    public void setData(List<Integer> data){
+        this.data.clear();
+        this.data.addAll(data);
+        this.notifyItemRangeInserted(0,this.data.size()-1);
     }
 
 
@@ -42,11 +50,12 @@ public class GalleryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     @Override
     public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
 
+        System.out.println(url + data.get(position));
         Glide.with(context).load(url + data.get(position))
                 .thumbnail(0.5f)
                 .crossFade()
                 .placeholder(R.drawable.ic_image_photo_camera)
-                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .diskCacheStrategy(DiskCacheStrategy.NONE)
                 .into(((MyItemHolder) holder).mImg);
 
     }
