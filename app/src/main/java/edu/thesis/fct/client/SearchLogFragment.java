@@ -17,6 +17,7 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.v4.content.CursorLoader;
 import android.support.v7.app.AlertDialog;
 import android.util.Log;
+import android.util.Size;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -123,19 +124,24 @@ public class SearchLogFragment extends ListFragment {
                 int column_index = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA);
                 cursor.moveToFirst();
                 String selectedImagePath = cursor.getString(column_index);
-                Bitmap bm;
-                BitmapFactory.Options options = new BitmapFactory.Options();
-                options.inJustDecodeBounds = true;
-                BitmapFactory.decodeFile(selectedImagePath, options);
-                final int REQUIRED_SIZE = 200;
-                int scale = 1;
-                while (options.outWidth / scale / 2 >= REQUIRED_SIZE
-                        && options.outHeight / scale / 2 >= REQUIRED_SIZE)
-                    scale *= 2;
-                options.inSampleSize = scale;
-                options.inJustDecodeBounds = false;
-                bm = BitmapFactory.decodeFile(selectedImagePath, options);
-                //ivImage.setImageBitmap(bm);
+                String trainPath = Environment.getExternalStorageDirectory() + "/trainpaio";
+
+                class recognitionAsync implements Runnable {
+                    String trainPath;
+                    String facePath;
+                    Activity act;
+                    recognitionAsync(Activity act,String trainPath, String facePath){
+                        this.trainPath = trainPath;
+                        this.facePath = facePath;
+                        this.act = act;
+                    }
+                    public void run(){
+                        new FaceRecognitionAsync().execute(act,trainPath, facePath);
+                    }
+                }
+
+                getActivity().runOnUiThread(new recognitionAsync(getActivity(),trainPath, selectedImagePath));
+
             }
         }
     }

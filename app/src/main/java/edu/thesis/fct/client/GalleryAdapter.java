@@ -53,9 +53,9 @@ public class GalleryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         System.out.println(url + data.get(position));
         Glide.with(context).load(url + data.get(position))
                 .thumbnail(0.5f)
-                .crossFade()
                 .placeholder(R.drawable.ic_image_photo_camera)
-                .diskCacheStrategy(DiskCacheStrategy.NONE)
+                .diskCacheStrategy( DiskCacheStrategy.NONE )
+                .skipMemoryCache( true )
                 .into(((MyItemHolder) holder).mImg);
 
     }

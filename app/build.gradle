@@ -4,6 +4,12 @@ android {
     compileSdkVersion 23
     buildToolsVersion "23.0.2"
 
+    packagingOptions{
+        exclude 'META-INF/maven/org.bytedeco.javacpp-presets/opencv/pom.properties'
+        exclude 'META-INF/maven/org.bytedeco.javacpp-presets/opencv/pom.xml'
+
+    }
+
     defaultConfig {
         applicationId "edu.thesis.fct.hyrax"
         minSdkVersion 19
@@ -25,8 +31,10 @@ dependencies {
     compile 'com.android.support:appcompat-v7:23.1.0'
     compile 'com.android.support:support-v13:23.1.0'
     compile 'javax.jws:jsr181-api:1.0-MR1'
-    compile "com.android.support:design:23.1.0"
+    compile 'com.android.support:design:23.1.0'
     compile 'com.mcxiaoke.volley:library-aar:1.0.0'
-    compile "com.android.support:recyclerview-v7:23.0.1"
+    compile 'com.android.support:recyclerview-v7:23.0.1'
     compile 'com.github.bumptech.glide:glide:3.7.0'
+    compile group: 'org.bytedeco', name: 'javacv', version: '1.1'
+    compile group: 'org.bytedeco.javacpp-presets', name: 'opencv', version: '1.1', classifier:    'android-arm'
 }

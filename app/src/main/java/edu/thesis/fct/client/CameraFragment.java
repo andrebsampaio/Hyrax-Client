@@ -43,8 +43,8 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
-import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
@@ -58,21 +58,13 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.ProtocolException;
-import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -195,6 +187,9 @@ public class CameraFragment extends Fragment
     /**
      * {@link CameraDevice.StateCallback} is called when {@link CameraDevice} changes its state.
      */
+
+    private boolean autoUploadStatus = true;
+
     private final CameraDevice.StateCallback mStateCallback = new CameraDevice.StateCallback() {
 
         @Override
@@ -254,7 +249,7 @@ public class CameraFragment extends Fragment
 
         @Override
         public void onImageAvailable(ImageReader reader) {
-            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile,getActivity()));
+            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile,getActivity(), autoUploadStatus));
         }
 
     };
@@ -446,12 +441,26 @@ public class CameraFragment extends Fragment
     public void onViewCreated(final View view, Bundle savedInstanceState) {
         view.findViewById(R.id.picture).setOnClickListener(this);
         mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
+        view.findViewById(R.id.uploadButton).setOnClickListener(new View.OnClickListener(){
+            public void onClick(View v){
+                TextView t = (TextView) v.findViewById(R.id.uploadIndicator);
+                if (autoUploadStatus){
+                    t.setText("OFF");
+                    autoUploadStatus = false;
+                } else {
+                    t.setText("AUTO");
+                    autoUploadStatus = true;
+                }
+            }
+        });
     }
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        mFile = new File(getActivity().getExternalFilesDir(null), System.currentTimeMillis() + ".jpg");
+        //mFile = new File(getActivity().getExternalFilesDir(null), System.currentTimeMillis() + ".jpg");
+        mFile = new File(Environment.getExternalStorageDirectory() + "/Hyrax/location" +
+                System.currentTimeMillis() + "/location" + System.currentTimeMillis() + ".jpg");
     }
 
 
@@ -853,7 +862,12 @@ public class CameraFragment extends Fragment
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session,
                                                @NonNull CaptureRequest request,
                                                @NonNull TotalCaptureResult result) {
-                    showToast("Photo stored and uploaded");
+                    if (autoUploadStatus){
+                        showToast("Photo stored and uploaded");
+                    } else {
+                        showToast("Photo stored");
+                    }
+
                     Log.d(TAG, mFile.toString());
                     unlockFocus();
                 }
@@ -909,6 +923,7 @@ public class CameraFragment extends Fragment
      */
     private static class ImageSaver implements Runnable {
 
+        private final boolean autoUploadStatus;
         /**
          * The JPEG image
          */
@@ -920,10 +935,27 @@ public class CameraFragment extends Fragment
 
         private final Activity activity;
 
-        public ImageSaver(Image image, File file, Activity activity) {
+        public ImageSaver(Image image, File file, Activity activity, boolean autoUploadStatus) {
             mImage = image;
             mFile = file;
             this.activity = activity;
+            this.autoUploadStatus = autoUploadStatus;
+        }
+
+        class uploadAsync implements Runnable {
+            byte [] b;
+            File name;
+            Size size;
+            Activity act;
+            uploadAsync(Activity act,Size size, File name, byte [] b){
+                this.b = b;
+                this.name = name;
+                this.size = size;
+                this.act = act;
+            }
+            public void run(){
+                new UploadImageTask().execute(act,size, name, b);
+            }
         }
 
         @Override
@@ -935,24 +967,16 @@ public class CameraFragment extends Fragment
             try {
                 if(!mFile.exists())
                 {
+                    mFile.getParentFile().mkdirs();
                     mFile.createNewFile();
                 }
                 output = new FileOutputStream(mFile);
                 output.write(bytes);
-                Log.d("UPLOAD", "HEREE");
 
-                class uploadAsync implements Runnable {
-                    byte [] b;
-                    uploadAsync(byte [] b){
-                        this.b = b;
-                    }
-                    public void run(){
-                        new UploadImageTask().execute(b);
-                    }
+                if(autoUploadStatus){
+                    Log.d("UPLOAD", "PROCESSING IMAGE AND UPLOAD");
+                    activity.runOnUiThread(new uploadAsync(activity,new Size(mImage.getWidth(),mImage.getHeight()), mFile,bytes));
                 }
-
-                activity.runOnUiThread(new uploadAsync(bytes));
-
 
             } catch (IOException e) {
                 e.printStackTrace();

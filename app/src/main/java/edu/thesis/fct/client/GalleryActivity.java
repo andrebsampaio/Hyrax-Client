@@ -74,8 +74,9 @@ public class GalleryActivity extends Activity {
                     public void onResponse(JSONObject response) {
                         ids = new ArrayList<>();
                         try {
-                            JSONObject object = new JSONObject("imageDAO");
+                            JSONObject object = response.getJSONObject("imageDAO");
                             ids.add(object.optInt("id"));
+                            mAdapter.setData(ids);
                         }
                         catch (JSONException e1) {
                             try {

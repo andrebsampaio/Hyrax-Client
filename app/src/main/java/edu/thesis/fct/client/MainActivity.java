@@ -7,6 +7,7 @@ import android.content.Context;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
@@ -38,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         getSupportActionBar().hide();
         setContentView(R.layout.main_layout);
+
         activity = this;
         Fragment cam = new CameraFragment();
         Fragment log = new SearchLogFragment();
@@ -158,10 +160,6 @@ public class MainActivity extends AppCompatActivity {
             }
         };
     }
-
-
-
-
 
 
 }
