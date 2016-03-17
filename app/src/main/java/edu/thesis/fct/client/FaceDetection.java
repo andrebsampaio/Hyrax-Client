@@ -2,6 +2,7 @@ package edu.thesis.fct.client;
 
 
 import android.content.Context;
+import android.os.Build;
 import android.os.Environment;
 
 import static org.bytedeco.javacpp.opencv_face.*;
@@ -28,16 +29,20 @@ public class FaceDetection {
         this.context = context;
     }
 
-    public void detectFaces( int width, int height, byte [] imgBuf,File f) {
+    public void detectFaces( File f) {
         try {
-            Mat image = new Mat(width,height, CV_8UC3);
-            image.data().put(imgBuf);
-            image = imdecode(image, CV_LOAD_IMAGE_UNCHANGED);
-            image = image.t().asMat();
+            Mat image = imread(f.getAbsolutePath());
+            //SUPER HACK
+            if (Build.MANUFACTURER.contains("samsung")){
+                image = image.t().asMat();
+            }
+            imwrite(Environment.getExternalStorageDirectory() + "/potasçdasd.jpg", image);
+            System.out.println(Environment.getExternalStorageDirectory() + "/potasçdasd.jpg");
+            System.out.println("CARALHO");
 
-            InputStream is = context.getResources().openRawResource(R.raw.lbpcascade_frontalface);
+            InputStream is = context.getResources().openRawResource(R.raw.haarcascade_frontalface_alt_tree);
             File cascadeDir = context.getDir("cascade", Context.MODE_PRIVATE);
-            mCascadeFile = new File(cascadeDir, "lbpcascade_frontalface.xml");
+            mCascadeFile = new File(cascadeDir, "haarcascade_frontalface_alt_tree.xml");
             FileOutputStream os = new FileOutputStream(mCascadeFile);
 
             byte[] buffer = new byte[4096];

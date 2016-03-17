@@ -62,6 +62,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
+import com.android.volley.NetworkResponse;
+import com.android.volley.Response;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -162,7 +165,7 @@ public class CameraFragment extends Fragment
     /**
      * ID of the current {@link CameraDevice}.
      */
-    private String mCameraId;
+    private String mCameraId = "1";
 
     /**
      * An {@link AutoFitTextureView} for camera preview.
@@ -189,6 +192,8 @@ public class CameraFragment extends Fragment
      */
 
     private boolean autoUploadStatus = true;
+
+    private CameraCharacteristics cameraInfo;
 
     private final CameraDevice.StateCallback mStateCallback = new CameraDevice.StateCallback() {
 
@@ -441,10 +446,10 @@ public class CameraFragment extends Fragment
     public void onViewCreated(final View view, Bundle savedInstanceState) {
         view.findViewById(R.id.picture).setOnClickListener(this);
         mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
-        view.findViewById(R.id.uploadButton).setOnClickListener(new View.OnClickListener(){
-            public void onClick(View v){
+        view.findViewById(R.id.uploadButton).setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
                 TextView t = (TextView) v.findViewById(R.id.uploadIndicator);
-                if (autoUploadStatus){
+                if (autoUploadStatus) {
                     t.setText("OFF");
                     autoUploadStatus = false;
                 } else {
@@ -453,7 +458,31 @@ public class CameraFragment extends Fragment
                 }
             }
         });
+        view.findViewById(R.id.rotateCamera).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                closeCamera();
+                CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
+                String[] cameras = new String[0];
+                try {
+                    cameras = manager.getCameraIdList();
+                    if (mCameraId.equals(cameras[0])) {
+                        mCameraId = cameras[1];
+                    } else {
+                        mCameraId = cameras[0];
+                    }
+                    cameraInfo = manager.getCameraCharacteristics(mCameraId);
+                    openCamera(mTextureView.getWidth(), mTextureView.getHeight());
+                } catch (CameraAccessException e) {
+                    e.printStackTrace();
+                }
+
+
+            }
+        });
     }
+
+
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
@@ -523,11 +552,10 @@ public class CameraFragment extends Fragment
                 CameraCharacteristics characteristics
                         = manager.getCameraCharacteristics(cameraId);
 
-                // We don't use a front facing camera in this sample.
-                Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
+                /*Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
                 if (facing != null && facing == CameraCharacteristics.LENS_FACING_FRONT) {
                     continue;
-                }
+                }*/
 
                 StreamConfigurationMap map = characteristics.get(
                         CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
@@ -610,7 +638,10 @@ public class CameraFragment extends Fragment
                 Boolean available = characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
                 mFlashSupported = available == null ? false : available;
 
-                mCameraId = cameraId;
+                if(mCameraId == null){
+                    mCameraId = cameraId;
+                }
+
                 return;
             }
         } catch (CameraAccessException e) {
@@ -697,7 +728,7 @@ public class CameraFragment extends Fragment
     }
 
     /**
-     * Creates a new {@link CameraCaptureSession} for camera preview.
+     * f a new {@link CameraCaptureSession} for camera preview.
      */
     private void createCameraPreviewSession() {
         try {
@@ -796,6 +827,10 @@ public class CameraFragment extends Fragment
         lockFocus();
     }
 
+    private void takePictureFront(){
+            captureStillPicture();
+    }
+
     /**
      * Lock the focus as the first step for a still image capture.
      */
@@ -852,8 +887,9 @@ public class CameraFragment extends Fragment
             setAutoFlash(captureBuilder);
 
             // Orientation
-            int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
-            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(rotation));
+            CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
+
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, manager.getCameraCharacteristics(mCameraId).get(CameraCharacteristics.SENSOR_ORIENTATION));
 
             CameraCaptureSession.CaptureCallback CaptureCallback
                     = new CameraCaptureSession.CaptureCallback() {
@@ -905,7 +941,14 @@ public class CameraFragment extends Fragment
     public void onClick(View view) {
         switch (view.getId()) {
             case R.id.picture: {
-                takePicture();
+                if (mCameraId == "0"){
+                    takePicture();
+                } else {
+                    System.out.println("EUU");
+                    takePictureFront();
+                }
+
+
                 break;
             }
         }
@@ -943,18 +986,14 @@ public class CameraFragment extends Fragment
         }
 
         class uploadAsync implements Runnable {
-            byte [] b;
             File name;
-            Size size;
             Activity act;
-            uploadAsync(Activity act,Size size, File name, byte [] b){
-                this.b = b;
+            uploadAsync(Activity act, File name){
                 this.name = name;
-                this.size = size;
                 this.act = act;
             }
             public void run(){
-                new UploadImageTask().execute(act,size, name, b);
+                new UploadImageTask().execute(act, name);
             }
         }
 
@@ -973,11 +1012,6 @@ public class CameraFragment extends Fragment
                 output = new FileOutputStream(mFile);
                 output.write(bytes);
 
-                if(autoUploadStatus){
-                    Log.d("UPLOAD", "PROCESSING IMAGE AND UPLOAD");
-                    activity.runOnUiThread(new uploadAsync(activity,new Size(mImage.getWidth(),mImage.getHeight()), mFile,bytes));
-                }
-
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {
@@ -985,7 +1019,10 @@ public class CameraFragment extends Fragment
                 if (null != output) {
                     try {
                         output.close();
-
+                        if(autoUploadStatus){
+                            Log.d("UPLOAD", "PROCESSING IMAGE AND UPLOAD");
+                            activity.runOnUiThread(new uploadAsync(activity, mFile));
+                        }
                     } catch (IOException e) {
                         e.printStackTrace();
                     }

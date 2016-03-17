@@ -9,6 +9,8 @@ import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -24,9 +26,9 @@ public class UploadImageTask extends AsyncTask<Object, Void, Void> {
 
     HttpURLConnection httpUrlConnection;
 
-    private void processImage(Context context, Size size, byte [] bytes, File name){
+    private void processImage(Context context, File name){
         FaceDetection f = new FaceDetection(context);
-        f.detectFaces(size.getWidth(),size.getHeight(),bytes ,name);
+        f.detectFaces(name);
     }
 
     protected Void doInBackground(Object... params) {
@@ -37,11 +39,9 @@ public class UploadImageTask extends AsyncTask<Object, Void, Void> {
         String boundary = "*****";
         String details = "details";
         Context context = (Context) params[0];
-        Size size = (Size) params[1];
-        File name = (File) params[2];
-        byte [] image = (byte []) params [3];
+        File name = (File) params[1];
 
-        processImage(context, size, image, name);
+        processImage(context, name);
 
 
         NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
@@ -80,7 +80,16 @@ public class UploadImageTask extends AsyncTask<Object, Void, Void> {
 
                 request.writeBytes(crlf);
 
-                request.write((byte[])params[0]);
+                FileInputStream fileInputStream = new FileInputStream(name);
+                byte[] buffer = new byte[1024*1024];
+                int bytesRead = 0;
+
+                while((bytesRead = fileInputStream.read(buffer))>0)
+                {
+                    request.write(buffer, 0, bytesRead);
+                }
+
+                fileInputStream.close();
 
                 request.writeBytes(crlf);
 
