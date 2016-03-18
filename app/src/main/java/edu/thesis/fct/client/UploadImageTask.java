@@ -3,14 +3,12 @@ package edu.thesis.fct.client;
 import android.content.Context;
 import android.os.AsyncTask;
 import android.util.Log;
-import android.util.Size;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -26,9 +24,10 @@ public class UploadImageTask extends AsyncTask<Object, Void, Void> {
 
     HttpURLConnection httpUrlConnection;
 
-    private void processImage(Context context, File name){
-        FaceDetection f = new FaceDetection(context);
-        f.detectFaces(name);
+    private void processImage(Context context, File name, int cameraLens){
+        FaceProcessing f = new FaceProcessing(context);
+        //f.detectFaces(name, cameraLens);
+        f.detectFaces(name, cameraLens);
     }
 
     protected Void doInBackground(Object... params) {
@@ -40,8 +39,9 @@ public class UploadImageTask extends AsyncTask<Object, Void, Void> {
         String details = "details";
         Context context = (Context) params[0];
         File name = (File) params[1];
+        int cameraLens = (int)params[2];
 
-        processImage(context, name);
+        processImage(context, name, cameraLens);
 
 
         NetworkInfoHolder nih = NetworkInfoHolder.getInstance();

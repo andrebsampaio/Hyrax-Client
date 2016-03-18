@@ -1,19 +1,3 @@
-/*
- * Copyright 2014 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package edu.thesis.fct.client;
 
 import android.Manifest;
@@ -60,10 +44,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
-
-
-import com.android.volley.NetworkResponse;
-import com.android.volley.Response;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -254,7 +234,7 @@ public class CameraFragment extends Fragment
 
         @Override
         public void onImageAvailable(ImageReader reader) {
-            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile,getActivity(), autoUploadStatus));
+            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile,getActivity(), autoUploadStatus,cameraInfo));
         }
 
     };
@@ -471,7 +451,6 @@ public class CameraFragment extends Fragment
                     } else {
                         mCameraId = cameras[0];
                     }
-                    cameraInfo = manager.getCameraCharacteristics(mCameraId);
                     openCamera(mTextureView.getWidth(), mTextureView.getHeight());
                 } catch (CameraAccessException e) {
                     e.printStackTrace();
@@ -668,6 +647,7 @@ public class CameraFragment extends Fragment
         Activity activity = getActivity();
         CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
         try {
+            cameraInfo = manager.getCameraCharacteristics(mCameraId);
             if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
                 throw new RuntimeException("Time out waiting to lock camera opening.");
             }
@@ -887,9 +867,8 @@ public class CameraFragment extends Fragment
             setAutoFlash(captureBuilder);
 
             // Orientation
-            CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
 
-            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, manager.getCameraCharacteristics(mCameraId).get(CameraCharacteristics.SENSOR_ORIENTATION));
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, cameraInfo.get(CameraCharacteristics.SENSOR_ORIENTATION));
 
             CameraCaptureSession.CaptureCallback CaptureCallback
                     = new CameraCaptureSession.CaptureCallback() {
@@ -941,13 +920,10 @@ public class CameraFragment extends Fragment
     public void onClick(View view) {
         switch (view.getId()) {
             case R.id.picture: {
-                if (mCameraId == "0"){
-                    takePicture();
-                } else {
-                    System.out.println("EUU");
+                Integer facing = cameraInfo.get(CameraCharacteristics.LENS_FACING);
+                if (facing != null && facing == CameraCharacteristics.LENS_FACING_FRONT) {
                     takePictureFront();
-                }
-
+                } else takePicture();
 
                 break;
             }
@@ -978,22 +954,27 @@ public class CameraFragment extends Fragment
 
         private final Activity activity;
 
-        public ImageSaver(Image image, File file, Activity activity, boolean autoUploadStatus) {
+        private final CameraCharacteristics cameraInfo;
+
+        public ImageSaver(Image image, File file, Activity activity, boolean autoUploadStatus, CameraCharacteristics cameraInfo) {
             mImage = image;
             mFile = file;
             this.activity = activity;
             this.autoUploadStatus = autoUploadStatus;
+            this.cameraInfo = cameraInfo;
         }
 
         class uploadAsync implements Runnable {
             File name;
             Activity act;
-            uploadAsync(Activity act, File name){
+            int cameraLens;
+            uploadAsync(Activity act, File name, int cameraLens){
                 this.name = name;
                 this.act = act;
+                this.cameraLens = cameraLens;
             }
             public void run(){
-                new UploadImageTask().execute(act, name);
+                new UploadImageTask().execute(act, name, cameraLens);
             }
         }
 
@@ -1021,7 +1002,8 @@ public class CameraFragment extends Fragment
                         output.close();
                         if(autoUploadStatus){
                             Log.d("UPLOAD", "PROCESSING IMAGE AND UPLOAD");
-                            activity.runOnUiThread(new uploadAsync(activity, mFile));
+                            Integer facing = cameraInfo.get(CameraCharacteristics.LENS_FACING);
+                            activity.runOnUiThread(new uploadAsync(activity, mFile,facing));
                         }
                     } catch (IOException e) {
                         e.printStackTrace();
