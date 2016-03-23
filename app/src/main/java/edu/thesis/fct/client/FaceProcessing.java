@@ -38,7 +38,7 @@ public class FaceProcessing {
         this.context = context;
     }
 
-    public void detectFaces(File f, int cameraLens) {
+    public File [] detectFaces(File f, int cameraLens) {
         FaceDetector detector = new FaceDetector.Builder(context)
                 .setTrackingEnabled(false)
                 .setLandmarkType(FaceDetector.ALL_LANDMARKS)
@@ -69,6 +69,8 @@ public class FaceProcessing {
 
         System.out.println(mFaces.size());
 
+        File [] facesFiles = new File [mFaces.size()];
+
         if (mFaces.size() > 0) {
             File faces = new File(f.getParentFile().getAbsolutePath() + "/faces");
             faces.mkdir();
@@ -76,14 +78,18 @@ public class FaceProcessing {
 
             for (int i = 0; i < mFaces.size(); i++) {
                 Face face = mFaces.valueAt(i);
-                saveFace(cropFace(bitmap, face), faces.getAbsolutePath() + "/face_" + i + ".jpg");
+                String faceLocation = faces.getAbsolutePath() + "/" + f.getName()  + "_face" + i + ".jpg";
+                saveFace(cropFace(bitmap, face), faceLocation);
+                facesFiles[i] = new File (faceLocation);
             }
         }
 
+        return facesFiles;
     }
 
 
     private Bitmap cropFace(Bitmap b, Face face) {
+        System.out.println("X: " + (int) face.getPosition().x + " Y: " + (int) face.getPosition().y );
         Bitmap cutBitmap = Bitmap.createBitmap(b, (int) face.getPosition().x, (int) face.getPosition().y, (int) face.getWidth(), (int) face.getHeight());
         return cutBitmap;
 
@@ -218,6 +224,7 @@ public class FaceProcessing {
         image = resizedImage;
 
         faceRecognizer.train(images, labels);
+        faceRecognizer.save(Environment.getExternalStorageDirectory() + "/andre_eigenface.xml");
 
         double[] prediction = new double[1];
         int[] predictionImageLabel = new int[1];

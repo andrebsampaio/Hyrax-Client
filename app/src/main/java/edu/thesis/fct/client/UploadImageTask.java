@@ -23,26 +23,24 @@ import java.net.URL;
 public class UploadImageTask extends AsyncTask<Object, Void, Void> {
 
     HttpURLConnection httpUrlConnection;
+    final static String crlf = "\r\n";
+    final static String twoHyphens = "--";
+    final static String boundary = "*****";
 
-    private void processImage(Context context, File name, int cameraLens){
+    private File [] processImage(Context context, File name, int cameraLens){
         FaceProcessing f = new FaceProcessing(context);
         //f.detectFaces(name, cameraLens);
-        f.detectFaces(name, cameraLens);
+        return f.detectFaces(name, cameraLens);
     }
 
     protected Void doInBackground(Object... params) {
-        String attachmentName = "image";
-        String attachmentFileName = "bitmap.jpg";
-        String crlf = "\r\n";
-        String twoHyphens = "--";
-        String boundary = "*****";
+
         String details = "details";
         Context context = (Context) params[0];
         File name = (File) params[1];
         int cameraLens = (int)params[2];
 
-        processImage(context, name, cameraLens);
-
+        File [] faces = processImage(context, name, cameraLens);
 
         NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
         HttpURLConnection httpUrlConnection = null;
@@ -71,27 +69,12 @@ public class UploadImageTask extends AsyncTask<Object, Void, Void> {
 
                 request.writeBytes(crlf);
 
-                request.writeBytes(twoHyphens + boundary + crlf);
+                sendFile(request, "image", name);
 
-                request.writeBytes("Content-Disposition: form-data; name=\"" +
-                        attachmentName + "\";filename=\"" +
-                        attachmentFileName + "\"" + crlf);
-                request.writeBytes("Content-Type: image/jpeg" + crlf);
-
-                request.writeBytes(crlf);
-
-                FileInputStream fileInputStream = new FileInputStream(name);
-                byte[] buffer = new byte[1024*1024];
-                int bytesRead = 0;
-
-                while((bytesRead = fileInputStream.read(buffer))>0)
-                {
-                    request.write(buffer, 0, bytesRead);
+                for (File f : faces){
+                    request.writeBytes(crlf);
+                    sendFile(request, "face", f);
                 }
-
-                fileInputStream.close();
-
-                request.writeBytes(crlf);
 
                 request.writeBytes(twoHyphens + boundary +
                         twoHyphens + crlf);
@@ -139,5 +122,33 @@ public class UploadImageTask extends AsyncTask<Object, Void, Void> {
             }
         }
         return null;
+    }
+
+    private void sendFile(DataOutputStream request, String field, File f){
+        try {
+            request.writeBytes(twoHyphens + boundary + crlf);
+            request.writeBytes("Content-Disposition: form-data; name=\"" +
+                    field + "\";filename=\"" +
+                    f.getName() + "\"" + crlf);
+            request.writeBytes("Content-Type: image/jpeg" + crlf);
+
+            request.writeBytes(crlf);
+
+            FileInputStream fileInputStream = new FileInputStream(f);
+            byte[] buffer = new byte[1024*1024];
+            int bytesRead = 0;
+
+            while((bytesRead = fileInputStream.read(buffer))>0)
+            {
+                request.write(buffer, 0, bytesRead);
+            }
+
+            fileInputStream.close();
+
+            request.writeBytes(crlf);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 }
