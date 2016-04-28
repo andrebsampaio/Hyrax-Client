@@ -8,6 +8,7 @@ import android.app.DialogFragment;
 import android.app.Fragment;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.ImageFormat;
@@ -443,7 +444,7 @@ public class CameraFragment extends Fragment
             public void onClick(View v) {
                 closeCamera();
                 CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
-                String[] cameras = new String[0];
+                String[] cameras;
                 try {
                     cameras = manager.getCameraIdList();
                     if (mCameraId.equals(cameras[0])) {
@@ -455,7 +456,17 @@ public class CameraFragment extends Fragment
                 } catch (CameraAccessException e) {
                     e.printStackTrace();
                 }
+            }
+        });
 
+        view.findViewById(R.id.openGallery).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent myIntent = new Intent(getActivity(), GalleryActivity.class);
+                Bundle b=new Bundle();
+                b.putBoolean("isRegistration", false);
+                myIntent.putExtras(b);
+                startActivity(myIntent);
 
             }
         });

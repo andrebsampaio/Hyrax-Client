@@ -28,26 +28,37 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/rotateCamera"
-        android:src="@android:drawable/ic_menu_camera"
+        android:src="@drawable/ic_switch_camera_white_36dp"
         android:layout_margin="16dp"
+        android:alpha="0.8"
         android:layout_alignParentTop="true"
         android:layout_alignParentEnd="true" />
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/openGallery"
+        android:src="@drawable/ic_photo_library_white_36dp"
+        android:layout_margin="16dp"
+        android:alpha="0.8"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true" />
 
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:id="@+id/uploadButton"
-        android:layout_alignParentBottom="true"
         android:layout_alignParentRight="true"
+        android:layout_below="@id/rotateCamera"
         android:clickable="true"
         android:alpha="0.8"
-        android:layout_margin="16dp"
+        android:layout_marginRight="16dp"
         android:gravity="center">
         <ImageView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:src="@android:drawable/stat_sys_upload"
+            android:src="@drawable/ic_backup_white_36dp"
             android:background="@android:color/transparent"/>
 
         <TextView

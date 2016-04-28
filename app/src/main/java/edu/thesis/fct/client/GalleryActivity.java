@@ -1,28 +1,22 @@
 package edu.thesis.fct.client;
 
 import android.app.Activity;
-import android.app.Fragment;
 import android.app.ProgressDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
-import android.database.Cursor;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.provider.MediaStore;
-import android.support.design.widget.FloatingActionButton;
-import android.support.v4.content.CursorLoader;
 import android.support.v7.app.AlertDialog;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.LayoutInflater;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.GridView;
 import android.widget.Toast;
 
 import com.android.volley.AuthFailureError;
@@ -42,60 +36,239 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
-public class GalleryActivity extends Activity {
+public class GalleryActivity extends AppCompatActivity {
 
-    List<Object> ids;
+    private static final long MAX_FILE_SIZE = Long.MAX_VALUE ;
+    List<Object> ids = new ArrayList<>();
     RecyclerView recyclerView;
     Activity activity;
+    String searchURL;
     String imagesURL;
+    String registrationURL;
     GalleryAdapter mAdapter;
+    List<File> takenPhotos;
+    boolean registration;
+    SharedPreferences pref;
     int trainWidth = 0; int trainHeight = 0;
     final static String lineEnd = "\r\n";
     final static String twoHyphens = "--";
     final static String boundary = "*****";
+    AlertDialog dialog;
     final String mimeType = "multipart/form-data;boundary=" + boundary;
     ProgressDialog progressDialog;
+    String user;
+    private static final int MIN_PHOTOS = 8;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setTitle("Gallery");
-        Intent intent = getIntent();
-        String value = intent.getStringExtra("face");
+        Bundle b=this.getIntent().getExtras();
+        registration = b.getBoolean("isRegistration");
         activity = this;
         setContentView(R.layout.gallery_layout);
+        // Find the toolbar view inside the activity layout
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbarGallery);
+        // Sets the Toolbar to act as the ActionBar for this Activity window.
+        // Make sure the toolbar exists in the activity and is not null
+        setSupportActionBar(toolbar);
+        if (registration){
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
 
-        Bundle b=this.getIntent().getExtras();
-        String[] array=b.getStringArray("images_path");
-        List<File> takenPhotos = new ArrayList<>();
-        if (array != null){
-            for (String s : array){
-                takenPhotos.add(new File(s));
+            builder.setMessage("Our face recognition algorithm needs to learn your face, " +
+                    "in order to provide a reliable facial identification.\nPlease choose photos with different face poses")
+                    .setTitle("Please choose 8 photos");
+
+            dialog = builder.create();
+
+            dialog.show();
+            takenPhotos = new ArrayList<>();
+            if (registration){
+                String[] array=b.getStringArray("images_path");
+                if (array != null){
+                    for (String s : array){
+                        takenPhotos.add(new File(s));
+                    }
+                }
             }
+
+            user = b.getString("username");
+        } else {
+            pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
+            user = pref.getString("username", null);
         }
+
+        View flagsView = getWindow().getDecorView();
+        int uiOptions = flagsView.getSystemUiVisibility();
+        uiOptions &= ~View.SYSTEM_UI_FLAG_LOW_PROFILE;
+        uiOptions |= View.SYSTEM_UI_FLAG_FULLSCREEN;
+        uiOptions |= View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
+        uiOptions |= View.SYSTEM_UI_FLAG_IMMERSIVE;
+        uiOptions &= ~View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+        flagsView.setSystemUiVisibility(uiOptions);
 
         NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
         Log.d("NIH", nih.getHost() + "");
         if (nih.getHost() != null){
-            imagesURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/search/";
+            searchURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/search/";
+            registrationURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/register/";
+            imagesURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/images/";
         }
 
         recyclerView = (RecyclerView) findViewById(R.id.image_grid);
         recyclerView.setLayoutManager(new GridLayoutManager(activity, 3));
         recyclerView.setHasFixedSize(true); // Helps improve performance
-        mAdapter = new GalleryAdapter(activity,imagesURL,takenPhotos);
+
+        if (registration){
+            mAdapter = new GalleryAdapter(activity,null,takenPhotos);
+        } else{
+            mAdapter = new GalleryAdapter(activity, imagesURL,null);
+            searchMyFace(searchURL);
+        }
+
         recyclerView.setAdapter(mAdapter);
-        progressDialog = new ProgressDialog(this);
-        //searchMyFace2(imagesURL);
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        if (registration){
+            getMenuInflater().inflate(R.menu.menu_gallery_registration, menu);
+        }
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.allSelected:
+                if (mAdapter.getSelectedImages().size() == MIN_PHOTOS){
+                    progressDialog = new ProgressDialog(this);
+                    progressDialog.setCancelable(false);
+                    progressDialog.setCanceledOnTouchOutside(false);
+                    progressDialog.setMessage("Processing your face :)");
+                    progressDialog.show();
+                    sendRegistration(registrationURL);
+                } else {
+                    Toast.makeText(this, "Please select " + (MIN_PHOTOS - mAdapter.getSelectedImages().size()) + " more photos", Toast.LENGTH_LONG).show();
+                }
+                System.out.println(mAdapter.getSelectedImages().size());
+                return true;
+            case R.id.recognitionExplanation:
+                dialog.show();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+    private void sendRegistration(String url) {
+        List<File> images = mAdapter.getSelectedImages();
+        File zippedImages = zip(images, Environment.getExternalStorageDirectory() + File.separator +  user + ".zip");
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        DataOutputStream dos = new DataOutputStream(bos);
+        try {
+            buildPart(dos, read(zippedImages),  user + ".zip");
+            dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
+            byte [] multipartBody = bos.toByteArray();
+
+            MultipartRequest multipartRequest = new MultipartRequest(url, null, mimeType, multipartBody, new Response.Listener<NetworkResponse>() {
+                @Override
+                public void onResponse(NetworkResponse response) {
+                    Toast.makeText(getParent(), "Processing done, enjoy!", Toast.LENGTH_LONG).show();
+                    System.out.println(new String (response.data));
+                    Intent myIntent = new Intent(getParent(), MainActivity.class);
+                    pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
+                    SharedPreferences.Editor editor = pref.edit();
+                    editor.putString("username", user);
+                    editor.commit();
+                    progressDialog.dismiss();
+                    startActivity(myIntent);
+                }
+            }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    System.out.println(error.toString());
+                }
+            });
+
+            multipartRequest.setRetryPolicy(new DefaultRetryPolicy(180000, DefaultRetryPolicy.DEFAULT_MAX_RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+
+            MySingleton.getInstance(this).addToRequestQueue(multipartRequest);
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
+    public byte[] read(File file) throws Exception {
+        if (file.length() > MAX_FILE_SIZE) {
+            throw new Exception();
+        }
+
+        byte[] buffer = new byte[(int) file.length()];
+        InputStream ios = null;
+        try {
+            ios = new FileInputStream(file);
+            if (ios.read(buffer) == -1) {
+                throw new IOException(
+                        "EOF reached while trying to read the whole file");
+            }
+        } finally {
+            try {
+                if (ios != null)
+                    ios.close();
+            } catch (IOException e) {
+            }
+        }
+        return buffer;
+    }
+
+
+    private static File zip(List<File> files, String filename) {
+        File zipfile = new File(filename);
+        // Create a buffer for reading the files
+        byte[] buf = new byte[1024];
+        try {
+            // create the ZIP file
+            ZipOutputStream out = new ZipOutputStream(new FileOutputStream(zipfile));
+            // compress the files
+            for(int i=0; i<files.size(); i++) {
+                FileInputStream in = new FileInputStream(files.get(i));
+                // add ZIP entry to output stream
+                out.putNextEntry(new ZipEntry(files.get(i).getName()));
+                // transfer bytes from the file to the ZIP file
+                int len;
+                while((len = in.read(buf)) > 0) {
+                    out.write(buf, 0, len);
+                }
+                // complete the entry
+                out.closeEntry();
+                in.close();
+            }
+            // complete the ZIP file
+            out.close();
+            return zipfile;
+        } catch (IOException ex) {
+            System.err.println(ex.getMessage());
+        }
+        return null;
     }
 
     private void searchMyFace2(String url){
@@ -116,11 +289,11 @@ public class GalleryActivity extends Activity {
             MultipartRequest multipartRequest = new MultipartRequest(url, null, mimeType, multipartBody, new Response.Listener<NetworkResponse>() {
                 @Override
                 public void onResponse(NetworkResponse response) {
-                   if (response == null){
-                       Toast.makeText(getParent(), "No pictures found of you", Toast.LENGTH_LONG).show();
-                   } else {
-                       System.out.println(new String (response.data));
-                   }
+                    if (response == null){
+                        Toast.makeText(getParent(), "No pictures found of you", Toast.LENGTH_LONG).show();
+                    } else {
+                        System.out.println(new String (response.data));
+                    }
                     progressDialog.dismiss();
                 }
             }, new Response.ErrorListener() {
@@ -141,42 +314,61 @@ public class GalleryActivity extends Activity {
 
     }
 
-
-
     private void searchMyFace(String url){
-
+        progressDialog = new ProgressDialog(this);
+        progressDialog.setMessage("Searching for your photos");
+        progressDialog.show();
         StringRequest stringRequest = new StringRequest(Request.Method.POST, url,
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-                        System.out.println("ZEBUM");
+                        if (response == null){
+                            Toast.makeText(getParent(), "No pictures found of you", Toast.LENGTH_LONG).show();
+                        } else {
+                            JSONObject JSONresp;
+                            try {
+
+                                JSONresp = new JSONObject(response);
+                                JSONObject object = JSONresp.getJSONObject("imageDAO");
+                                int id = object.optInt("id");
+                                ids.add(id);
+                                mAdapter.setData(ids);
+                            } catch (JSONException e1) {
+                                try {
+                                    JSONresp = new JSONObject(response);
+                                    JSONArray ja = JSONresp.getJSONArray("imageDAO");
+                                    for (int i = 0; i < ja.length(); i++) {
+                                        JSONObject jsonObject = ja.getJSONObject(i);
+                                        ids.add(Integer.parseInt(jsonObject.optString("id")));
+                                    }
+                                    mAdapter.setData(ids);
+
+                                } catch (JSONException e2) {
+                                    e2.printStackTrace();
+                                }
+                            }
+                        }
+                        progressDialog.dismiss();
                     }
                 },
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        System.out.println("ZEBUM");
+                        System.out.println(error.networkResponse.toString());
                     }
                 }){
 
             @Override
-            public Map<String, String> getHeaders() throws AuthFailureError {
-                HashMap<String, String> headers = new HashMap<>();
-                headers.put("Content-Type", "multipart/form-data");
-                return headers;
+            protected Map<String,String> getParams(){
+                Map<String,String> params = new HashMap<>();
+                params.put("person_name", user);
+                return params;
             }
 
             @Override
-            protected Map<String,String> getParams(){
-                Map<String,String> params = new HashMap<>();
-                if (trainHeight == 0 || trainWidth == 0){
-                    File firstImage = (new File (Environment.getExternalStorageDirectory() + "/trainpaio")).listFiles()[0];
-                    Bitmap b = BitmapFactory.decodeFile(firstImage.getAbsolutePath());
-                    trainWidth = b.getWidth();
-                    trainHeight = b.getHeight();
-                }
-                params.put("train_width", String.valueOf(trainWidth));
-                params.put("train_height", String.valueOf(trainHeight));
+            public Map<String, String> getHeaders() {
+                Map<String,String> params = new HashMap<String, String>();
+                params.put("Content-Type","application/x-www-form-urlencoded");
                 return params;
             }
 

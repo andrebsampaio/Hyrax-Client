@@ -40,7 +40,7 @@ public class UploadImageTask extends AsyncTask<Object, Void, Void> {
         File name = (File) params[1];
         int cameraLens = (int)params[2];
 
-        File [] faces = processImage(context, name, cameraLens);
+        //File [] faces = processImage(context, name, cameraLens);
 
         NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
         HttpURLConnection httpUrlConnection = null;
@@ -71,10 +71,10 @@ public class UploadImageTask extends AsyncTask<Object, Void, Void> {
 
                 sendFile(request, "image", name);
 
-                for (File f : faces){
+                /*for (File f : faces){
                     request.writeBytes(crlf);
                     sendFile(request, "face", f);
-                }
+                }*/
 
                 request.writeBytes(twoHyphens + boundary +
                         twoHyphens + crlf);
