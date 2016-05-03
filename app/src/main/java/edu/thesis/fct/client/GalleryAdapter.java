@@ -1,6 +1,8 @@
 package edu.thesis.fct.client;
 
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.support.v7.widget.RecyclerView;
 import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
@@ -31,9 +33,8 @@ public class GalleryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
 
     public void setData(List<Object> data){
-        this.data.clear();
-        this.data.addAll(data);
-        this.notifyItemRangeInserted(0,this.data.size()-1);
+        this.data = data;
+        this.notifyDataSetChanged();
     }
 
 
@@ -62,11 +63,11 @@ public class GalleryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     public void onBindViewHolder(final RecyclerView.ViewHolder holder, final int position) {
 
         if (URL != null){
-            Glide.with(context).load(URL + (int) data.get(position))
+            Glide.with(context).load(URL + ((ImageModel) data.get(position)).getId())
                     .thumbnail(0.5f)
                     .placeholder(R.drawable.ic_image_photo_camera)
                     .diskCacheStrategy( DiskCacheStrategy.NONE )
-                    .skipMemoryCache( true )
+                    .skipMemoryCache(true)
                     .into(((MyItemHolder) holder).mImg);
 
         } else {
@@ -97,15 +98,25 @@ public class GalleryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
         @Override
         public void onClick(View v) {
-            System.out.println("SELECTED: " + getLayoutPosition() + "WHICH IS " + ((File) data.get(getLayoutPosition())).getAbsolutePath() );
-            if (selected.get(getLayoutPosition(), false)) {
-                selected.delete(getLayoutPosition());
-                v.findViewById(R.id.selectedIndicator).setVisibility(View.INVISIBLE);
+            if (URL == null){
+                if (selected.get(getLayoutPosition(), false)) {
+                    selected.delete(getLayoutPosition());
+                    v.findViewById(R.id.selectedIndicator).setVisibility(View.INVISIBLE);
+                }
+                else {
+                    selected.put(getLayoutPosition(), true);
+                    v.findViewById(R.id.selectedIndicator).setVisibility(View.VISIBLE);
+                }
+            } else {
+                ImageModel i = (ImageModel) data.get(getLayoutPosition());
+                String link = URL + i.getId();
+                Intent intent = new Intent(context, ImageDetailActivity.class);
+                intent.putExtra("image", link);
+                intent.putExtra("location", i.getLocation());
+                intent.putExtra("time", i.getTime());
+                context.startActivity(intent);
             }
-            else {
-                selected.put(getLayoutPosition(), true);
-                v.findViewById(R.id.selectedIndicator).setVisibility(View.VISIBLE);
-            }
+
         }
     }
 }

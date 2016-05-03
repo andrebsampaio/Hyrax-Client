@@ -70,15 +70,9 @@ public class LoginActivity extends AppCompatActivity {
         Button register = (Button) this.findViewById(R.id.registerButton);
         username = (EditText) this.findViewById(R.id.username);
 
-        View flagsView = getWindow().getDecorView();
-
-        int uiOptions = flagsView.getSystemUiVisibility();
-        uiOptions &= ~View.SYSTEM_UI_FLAG_LOW_PROFILE;
-        uiOptions |= View.SYSTEM_UI_FLAG_FULLSCREEN;
-        uiOptions |= View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
-        uiOptions |= View.SYSTEM_UI_FLAG_IMMERSIVE;
-        uiOptions &= ~View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
-        flagsView.setSystemUiVisibility(uiOptions);
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
 
         login.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {

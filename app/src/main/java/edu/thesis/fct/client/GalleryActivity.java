@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v7.app.AlertDialog;
@@ -17,6 +18,8 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Toast;
 
 import com.android.volley.AuthFailureError;
@@ -84,6 +87,7 @@ public class GalleryActivity extends AppCompatActivity {
         // Sets the Toolbar to act as the ActionBar for this Activity window.
         // Make sure the toolbar exists in the activity and is not null
         setSupportActionBar(toolbar);
+
         if (registration){
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
 
@@ -109,15 +113,6 @@ public class GalleryActivity extends AppCompatActivity {
             pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
             user = pref.getString("username", null);
         }
-
-        View flagsView = getWindow().getDecorView();
-        int uiOptions = flagsView.getSystemUiVisibility();
-        uiOptions &= ~View.SYSTEM_UI_FLAG_LOW_PROFILE;
-        uiOptions |= View.SYSTEM_UI_FLAG_FULLSCREEN;
-        uiOptions |= View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
-        uiOptions |= View.SYSTEM_UI_FLAG_IMMERSIVE;
-        uiOptions &= ~View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
-        flagsView.setSystemUiVisibility(uiOptions);
 
         NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
         Log.d("NIH", nih.getHost() + "");
@@ -146,7 +141,7 @@ public class GalleryActivity extends AppCompatActivity {
         // Inflate the menu; this adds items to the action bar if it is present.
         if (registration){
             getMenuInflater().inflate(R.menu.menu_gallery_registration, menu);
-        }
+        } else getMenuInflater().inflate(R.menu.menu_gallery, menu);
         return true;
     }
 
@@ -170,6 +165,8 @@ public class GalleryActivity extends AppCompatActivity {
             case R.id.recognitionExplanation:
                 dialog.show();
                 return true;
+            case R.id.searchPictures:
+                this.searchMyFace(searchURL);
             default:
                 return super.onOptionsItemSelected(item);
         }
@@ -326,12 +323,15 @@ public class GalleryActivity extends AppCompatActivity {
                             Toast.makeText(getParent(), "No pictures found of you", Toast.LENGTH_LONG).show();
                         } else {
                             JSONObject JSONresp;
+                            ids = new ArrayList<>();
                             try {
 
                                 JSONresp = new JSONObject(response);
                                 JSONObject object = JSONresp.getJSONObject("imageDAO");
                                 int id = object.optInt("id");
-                                ids.add(id);
+                                String location = object.optString("location");
+                                String time = object.optString("time");
+                                ids.add(new ImageModel(id, location, time));
                                 mAdapter.setData(ids);
                             } catch (JSONException e1) {
                                 try {
@@ -339,7 +339,10 @@ public class GalleryActivity extends AppCompatActivity {
                                     JSONArray ja = JSONresp.getJSONArray("imageDAO");
                                     for (int i = 0; i < ja.length(); i++) {
                                         JSONObject jsonObject = ja.getJSONObject(i);
-                                        ids.add(Integer.parseInt(jsonObject.optString("id")));
+                                        int id = jsonObject.optInt("id");
+                                        String location = jsonObject.optString("location");
+                                        String time = jsonObject.optString("time");
+                                        ids.add(new ImageModel(id, location, time));
                                     }
                                     mAdapter.setData(ids);
 

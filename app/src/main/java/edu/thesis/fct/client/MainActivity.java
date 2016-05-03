@@ -13,6 +13,7 @@ import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Toast;
 
 import java.lang.reflect.Field;
@@ -28,6 +29,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         getWindow().requestFeature(Window.FEATURE_ACTION_BAR);
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
         super.onCreate(savedInstanceState);
         getSupportActionBar().hide();
         setContentView(R.layout.main_layout);
@@ -37,7 +41,6 @@ public class MainActivity extends AppCompatActivity {
         //Fragment log = new SearchLogFragment();
         arrFragment = new Fragment[1];
         arrFragment[0] = cam;
-        //arrFragment[1] = log;
         myFragmentPager = new PageAdapter(getFragmentManager(),arrFragment);
         myViewPager = (ViewPager) findViewById(R.id.pager);
         myViewPager.setOffscreenPageLimit(1);

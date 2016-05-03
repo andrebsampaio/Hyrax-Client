@@ -6,7 +6,7 @@ import android.app.FragmentManager;
 import android.support.v13.app.FragmentPagerAdapter;
 
 public class PageAdapter extends FragmentPagerAdapter {
-    private final int PAGE_COUNT = 2;
+    private final int PAGE_COUNT = 1;
 
     Fragment[] arrFragment;
 
