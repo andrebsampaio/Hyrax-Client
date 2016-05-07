@@ -2,6 +2,7 @@ package edu.thesis.fct.client;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
@@ -63,6 +64,7 @@ public class GalleryActivity extends AppCompatActivity {
     List<File> takenPhotos;
     boolean registration;
     SharedPreferences pref;
+    Context context;
     int trainWidth = 0; int trainHeight = 0;
     final static String lineEnd = "\r\n";
     final static String twoHyphens = "--";
@@ -87,6 +89,8 @@ public class GalleryActivity extends AppCompatActivity {
         // Sets the Toolbar to act as the ActionBar for this Activity window.
         // Make sure the toolbar exists in the activity and is not null
         setSupportActionBar(toolbar);
+
+        context = this;
 
         if (registration){
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -319,8 +323,8 @@ public class GalleryActivity extends AppCompatActivity {
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-                        if (response == null){
-                            Toast.makeText(getParent(), "No pictures found of you", Toast.LENGTH_LONG).show();
+                        if (response.equals("null")){
+                            Toast.makeText(context, "No pictures found of you", Toast.LENGTH_LONG).show();
                         } else {
                             JSONObject JSONresp;
                             ids = new ArrayList<>();

@@ -111,6 +111,7 @@ public class GalleryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 ImageModel i = (ImageModel) data.get(getLayoutPosition());
                 String link = URL + i.getId();
                 Intent intent = new Intent(context, ImageDetailActivity.class);
+                intent.putExtra("id", i.getId());
                 intent.putExtra("image", link);
                 intent.putExtra("location", i.getLocation());
                 intent.putExtra("time", i.getTime());

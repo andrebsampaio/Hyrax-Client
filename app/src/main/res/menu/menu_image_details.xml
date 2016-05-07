@@ -1,6 +1,12 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
+        android:id="@+id/notMe"
+        android:icon="@drawable/ic_remove_circle_white_24dp"
+        app:showAsAction="always"
+        android:title="untag">
+    </item>
+    <item
         android:id="@+id/downloadPicture"
         android:icon="@drawable/ic_archive_white_24dp"
         app:showAsAction="always"

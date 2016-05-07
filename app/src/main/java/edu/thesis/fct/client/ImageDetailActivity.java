@@ -2,10 +2,13 @@ package edu.thesis.fct.client;
 
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -16,6 +19,10 @@ import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 
@@ -31,6 +38,8 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.HashMap;
+import java.util.Map;
 
 import uk.co.senab.photoview.PhotoView;
 import uk.co.senab.photoview.PhotoViewAttacher;
@@ -43,6 +52,10 @@ public class ImageDetailActivity extends AppCompatActivity {
     String location;
     String time;
     ProgressDialog progressDialog;
+    String untagURL;
+    String username;
+    int imageId;
+    Context context;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,9 +67,21 @@ public class ImageDetailActivity extends AppCompatActivity {
         // Make sure the toolbar exists in the activity and is not null
         setSupportActionBar(toolbar);
 
+        context = this;
+
+        imageId = getIntent().getIntExtra("id", 0);
         imageURL = getIntent().getStringExtra("image");
         location = getIntent().getStringExtra("location");
         time = getIntent().getStringExtra("time");
+        SharedPreferences pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
+        username = pref.getString("username", null);
+
+
+        NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
+        Log.d("NIH", nih.getHost() + "");
+        if (nih.getHost() != null){
+            untagURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/untag/";
+        }
 
         toolbar.setTitle(location + time);
 
@@ -86,8 +111,64 @@ public class ImageDetailActivity extends AppCompatActivity {
                         File.separator + location + time + File.separator + location + time + ".jpg";
                 new DownloadFilesTask().execute(new File(path), imageURL, this);
                 break;
+            case R.id.notMe:
+                new AlertDialog.Builder(this)
+                        .setTitle("It's not you?")
+                        .setMessage("Are you sure it is not you in the picture?\nThis picture will not appear in your searches again")
+                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                untagMe();
+
+                            }
+                        })
+                        .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                // do nothing
+                            }
+                        })
+                        .show();
+                break;
         }
         return true;
+    }
+
+    private void untagMe(){
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, untagURL,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        if (Boolean.valueOf(response)){
+                            Toast.makeText(context, "Tag removed", Toast.LENGTH_LONG ).show();
+                        } else {
+                            Toast.makeText(context, "An error ocurred, try again", Toast.LENGTH_LONG ).show();
+                        }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        System.out.println(error.networkResponse.toString());
+                    }
+                }){
+
+            @Override
+            protected Map<String,String> getParams(){
+                Map<String,String> params = new HashMap<>();
+                params.put("username", username);
+                params.put("picture_id", String.valueOf(imageId) );
+                return params;
+            }
+
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String,String> params = new HashMap<String, String>();
+                params.put("Content-Type","application/x-www-form-urlencoded");
+                return params;
+            }
+
+        };
+
+        MySingleton.getInstance(this).addToRequestQueue(stringRequest);
     }
 
     private boolean saveImage(File path, String urlPath){
