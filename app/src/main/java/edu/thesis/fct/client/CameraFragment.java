@@ -11,6 +11,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.Camera;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Point;
@@ -175,6 +176,10 @@ public class CameraFragment extends Fragment
     private boolean autoUploadStatus = true;
 
     private CameraCharacteristics cameraInfo;
+
+    private String username;
+
+    private String uploadURL;
 
     private final CameraDevice.StateCallback mStateCallback = new CameraDevice.StateCallback() {
 
@@ -407,6 +412,11 @@ public class CameraFragment extends Fragment
         return new CameraFragment();
     }
 
+    public CameraFragment(){
+        Bundle b = this.getArguments();
+        username = b.getString("username", null);
+        uploadURL = b.getString("url", null);
+    }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -978,14 +988,18 @@ public class CameraFragment extends Fragment
         class uploadAsync implements Runnable {
             File name;
             Activity act;
-            int cameraLens;
-            uploadAsync(Activity act, File name, int cameraLens){
+            String url;
+            String username;
+
+            uploadAsync(Activity act, File name, String url, String username){
                 this.name = name;
                 this.act = act;
-                this.cameraLens = cameraLens;
+                this.url = url;
+                this.username = username;
+
             }
             public void run(){
-                new UploadImageTask().execute(act, name, cameraLens);
+                new UploadImageTask().execute(act,url, name.getName(), username);
             }
         }
 
@@ -1013,8 +1027,9 @@ public class CameraFragment extends Fragment
                         output.close();
                         if(autoUploadStatus){
                             Log.d("UPLOAD", "PROCESSING IMAGE AND UPLOAD");
-                            Integer facing = cameraInfo.get(CameraCharacteristics.LENS_FACING);
-                            activity.runOnUiThread(new uploadAsync(activity, mFile,facing));
+                            String url = null;
+                            String username = null;
+                            activity.runOnUiThread(new uploadAsync(activity, mFile, url, username));
                         }
                     } catch (IOException e) {
                         e.printStackTrace();

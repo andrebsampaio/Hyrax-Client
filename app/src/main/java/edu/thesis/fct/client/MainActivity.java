@@ -4,6 +4,7 @@ package edu.thesis.fct.client;
 import android.app.Activity;
 import android.app.Fragment;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.os.Bundle;
@@ -25,6 +26,8 @@ public class MainActivity extends AppCompatActivity {
     ViewPager myViewPager;
     PageAdapter myFragmentPager;
     Activity activity;
+    String username;
+    String uploadURL;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,9 +39,22 @@ public class MainActivity extends AppCompatActivity {
         getSupportActionBar().hide();
         setContentView(R.layout.main_layout);
 
+        SharedPreferences pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
+
+        username = pref.getString("username",null);
+
+        NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
+        Log.d("NIH", nih.getHost() + "");
+        if (nih.getHost() != null){
+            uploadURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/upload/";
+        }
+
         activity = this;
         Fragment cam = new CameraFragment();
-        //Fragment log = new SearchLogFragment();
+        Bundle b = new Bundle();
+        b.putString("username", username);
+        b.putString("url", uploadURL);
+        cam.setArguments(b);
         arrFragment = new Fragment[1];
         arrFragment[0] = cam;
         myFragmentPager = new PageAdapter(getFragmentManager(),arrFragment);

@@ -64,7 +64,7 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
             }
             NetworkInfo networkInfo = intent
                     .getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
-
+            Log.d(WiFiDirectActivity.TAG, networkInfo.getState().toString());
             if (networkInfo.isConnected()) {
                 // we are connected with the other device, request connection
                 // info to find group owner IP
@@ -72,7 +72,7 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
                         "Connected to p2p network. Requesting network details");
                 mManager.requestConnectionInfo(mChannel, mConnectionListener);
             } else {
-                // It's a disconnect
+                Log.d(WiFiDirectActivity.TAG, networkInfo.getState().toString());
             }
 
         } else if (WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION.equals(action)) {

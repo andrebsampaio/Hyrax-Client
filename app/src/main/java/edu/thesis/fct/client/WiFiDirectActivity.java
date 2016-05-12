@@ -13,6 +13,7 @@ import android.net.wifi.p2p.WifiP2pDeviceList;
 import android.net.wifi.p2p.WifiP2pInfo;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -55,6 +56,7 @@ public class WiFiDirectActivity extends Activity {
         super.onCreate(savedInstanceState);
         mManager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
         mChannel = mManager.initialize(this, getMainLooper(), null);
+
         mPeerListListener = new WifiP2pManager.PeerListListener(){
             @Override
             public void onPeersAvailable(WifiP2pDeviceList peers){
@@ -73,8 +75,7 @@ public class WiFiDirectActivity extends Activity {
 
                         @Override
                         public void onSuccess() {
-                            Log.d(TAG, "Connected to " + device.deviceAddress);
-
+                            //Connecting...
                         }
 
                         @Override
@@ -96,32 +97,33 @@ public class WiFiDirectActivity extends Activity {
                     });
                 }
 
-
-
             }
         };
 
         mConnectionListener = new WifiP2pManager.ConnectionInfoListener() {
             @Override
             public void onConnectionInfoAvailable(WifiP2pInfo info) {
-                if (info.groupFormed && !info.isGroupOwner){
-                    Log.d("TAG", "is GO");
-                    new FileServerAsyncTask(WiFiDirectActivity.this).execute();
-                } else if (info.groupFormed) {
-                    WiFiDirectActivity.this.setConInfo(info);
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
+                if (!connected) {
+                    if (info.groupFormed && info.isGroupOwner){
+                        Log.d("TAG", "is GO");
+                        new FileServerAsyncTask(WiFiDirectActivity.this, mChannel,mManager).execute();
+                    } else if (info.groupFormed) {
+                        WiFiDirectActivity.this.setConInfo(info);
+                        try {
+                            Thread.sleep(3000);
+                        } catch (InterruptedException e) {
+                            // TODO Auto-generated catch block
+                            e.printStackTrace();
+                        }
+                        Log.d("TAG", "is Client");
+                        Intent intent = new Intent();
+                        intent.setType("image/*");
+                        intent.setAction(Intent.ACTION_GET_CONTENT);
+                        startActivityForResult(Intent.createChooser(intent,
+                                "Select Picture"), SELECT_PICTURE);
                     }
-                    Log.d("TAG", "is Client");
-                    Intent intent = new Intent();
-                    intent.setType("image/*");
-                    intent.setAction(Intent.ACTION_GET_CONTENT);
-                    startActivityForResult(Intent.createChooser(intent,
-                            "Select Picture"), SELECT_PICTURE);
                 }
+                connected = true;
             }
         };
 
@@ -131,36 +133,53 @@ public class WiFiDirectActivity extends Activity {
 
         mIntentFilter = new IntentFilter();
         mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
-        mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
         mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
         mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
 
-        mManager.discoverPeers(mChannel, new WifiP2pManager.ActionListener() {
-            @Override
-            public void onSuccess() {
-                Toast.makeText(WiFiDirectActivity.this, "Discovery Initiated",
-                        Toast.LENGTH_SHORT).show();
-            }
+        //The device that wants the image becomes the server
+        if (Build.MODEL.equals("m2")){
+            mManager.createGroup(mChannel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    Log.i(TAG,"Creating p2p group");
+                }
 
-            @Override
-            public void onFailure(int reasonCode) {
-                Toast.makeText(WiFiDirectActivity.this, "Discovery Failed : " + reasonCode,
-                        Toast.LENGTH_SHORT).show();
-                switch(reasonCode){
-                    case WifiP2pManager.P2P_UNSUPPORTED:
-                        Log.d(TAG, "P2P isn't supported on this device.");
-                        break;
-                    case WifiP2pManager.BUSY:
-                        Log.d(TAG, "Too busy for request");
-                        break;
-                    case WifiP2pManager.ERROR:
-                        Log.d(TAG, "An error ocurred");
-                        break;
-                    default:break;
+                @Override
+                public void onFailure(int i) {
+                    Log.i(TAG,"Creating group failed, error code:"+i);
 
                 }
-            }
-        });
+            });
+        } else {
+            mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
+            mManager.discoverPeers(mChannel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    Toast.makeText(WiFiDirectActivity.this, "Discovery Initiated",
+                            Toast.LENGTH_SHORT).show();
+                }
+
+                @Override
+                public void onFailure(int reasonCode) {
+                    Toast.makeText(WiFiDirectActivity.this, "Discovery Failed : " + reasonCode,
+                            Toast.LENGTH_SHORT).show();
+                    switch (reasonCode) {
+                        case WifiP2pManager.P2P_UNSUPPORTED:
+                            Log.d(TAG, "P2P isn't supported on this device.");
+                            break;
+                        case WifiP2pManager.BUSY:
+                            Log.d(TAG, "Too busy for request");
+                            break;
+                        case WifiP2pManager.ERROR:
+                            Log.d(TAG, "An error ocurred");
+                            break;
+                        default:
+                            break;
+
+                    }
+                }
+            });
+        }
 
     }
 
@@ -205,7 +224,7 @@ public class WiFiDirectActivity extends Activity {
         @Override
         protected Void doInBackground(Object... params) {
             int len;
-            Socket socket = new Socket();
+            Socket socket = null;
             byte buf[]  = new byte[1024];
             InetAddress address = (InetAddress)params[0];
             int port = (int) params[1];
@@ -218,8 +237,8 @@ public class WiFiDirectActivity extends Activity {
                  * port, and timeout information.
                  */
                 Log.d(TAG, "is reachable" + address.isReachable(500));
-                socket.bind(null);
-                socket.connect((new InetSocketAddress(address,port)), 500);
+                socket = new Socket(address,port);
+                socket.setSoTimeout(500);
 
                 /**
                  * Create a byte stream from a JPEG file and pipe it to the output stream
@@ -263,9 +282,13 @@ public class WiFiDirectActivity extends Activity {
     public static class FileServerAsyncTask extends AsyncTask<Object, String, String> {
 
         private Context context;
+        private WifiP2pManager mManager;
+        private WifiP2pManager.Channel mChannel;
 
-        public FileServerAsyncTask(Context context) {
+        public FileServerAsyncTask(Context context, WifiP2pManager.Channel mChannel, WifiP2pManager mManager) {
             this.context = context;
+            this.mChannel = mChannel;
+            this.mManager = mManager;
         }
 
         @Override
@@ -276,7 +299,10 @@ public class WiFiDirectActivity extends Activity {
                  * Create a server socket and wait for client connections. This
                  * call blocks until a connection is accepted from a client
                  */
+
+                Log.d(TAG, "Starting server");
                 ServerSocket serverSocket = new ServerSocket(9991);
+                Log.d(TAG, "Im waiting here at " + serverSocket.getLocalSocketAddress() + serverSocket.getLocalPort());
                 Socket client = serverSocket.accept();
                 Log.d(TAG, "ACCEPTED CONNECTION");
 
@@ -287,7 +313,7 @@ public class WiFiDirectActivity extends Activity {
                 final File f = new File(Environment.getExternalStorageDirectory() + "/wifip2pshared/" + System.currentTimeMillis()
                         + ".jpg");
 
-                Toast.makeText(context, f.getAbsolutePath(), Toast.LENGTH_LONG).show();
+                Log.d(TAG, "Saved at " + f.getAbsolutePath());
 
                 File dirs = new File(f.getParent());
                 if (!dirs.exists())
@@ -302,6 +328,7 @@ public class WiFiDirectActivity extends Activity {
                     len = in.read(buffer);
                 }
                 serverSocket.close();
+                mManager.removeGroup(mChannel,null);
                 return f.getAbsolutePath();
             } catch (IOException e) {
                 Log.e(WiFiDirectActivity.TAG, e.getMessage());
