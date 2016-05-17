@@ -335,7 +335,7 @@ public class GalleryActivity extends AppCompatActivity {
                                 int id = object.optInt("id");
                                 String location = object.optString("location");
                                 String time = object.optString("time");
-                                ids.add(new ImageModel(id, location, time));
+                                //ids.add(new ImageModel(id, location, time));
                                 mAdapter.setData(ids);
                             } catch (JSONException e1) {
                                 try {
@@ -346,7 +346,7 @@ public class GalleryActivity extends AppCompatActivity {
                                         int id = jsonObject.optInt("id");
                                         String location = jsonObject.optString("location");
                                         String time = jsonObject.optString("time");
-                                        ids.add(new ImageModel(id, location, time));
+                                        //ids.add(new ImageModel(id, location, time));
                                     }
                                     mAdapter.setData(ids);
 

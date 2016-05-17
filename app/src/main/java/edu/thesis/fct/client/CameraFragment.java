@@ -181,6 +181,10 @@ public class CameraFragment extends Fragment
 
     private String uploadURL;
 
+    private String location;
+
+    private long currentTime;
+
     private final CameraDevice.StateCallback mStateCallback = new CameraDevice.StateCallback() {
 
         @Override
@@ -240,7 +244,7 @@ public class CameraFragment extends Fragment
 
         @Override
         public void onImageAvailable(ImageReader reader) {
-            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile,getActivity(), autoUploadStatus,cameraInfo));
+            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile,getActivity(), autoUploadStatus,cameraInfo,uploadURL, location, String.valueOf(currentTime) ));
         }
 
     };
@@ -413,9 +417,6 @@ public class CameraFragment extends Fragment
     }
 
     public CameraFragment(){
-        Bundle b = this.getArguments();
-        username = b.getString("username", null);
-        uploadURL = b.getString("url", null);
     }
 
     @Override
@@ -487,9 +488,13 @@ public class CameraFragment extends Fragment
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        //mFile = new File(getActivity().getExternalFilesDir(null), System.currentTimeMillis() + ".jpg");
-        mFile = new File(Environment.getExternalStorageDirectory() + "/Hyrax/location" +
-                System.currentTimeMillis() + "/location" + System.currentTimeMillis() + ".jpg");
+        Bundle b = this.getArguments();
+        username = b.getString("username", null);
+        uploadURL = b.getString("url", null);
+        location = "location";
+        currentTime = System.currentTimeMillis();
+        mFile = new File(Environment.getExternalStorageDirectory() + File.separator + "Hyrax" + File.separator + location +
+                currentTime + File.separator + location + currentTime + ".jpg");
     }
 
 
@@ -977,29 +982,41 @@ public class CameraFragment extends Fragment
 
         private final CameraCharacteristics cameraInfo;
 
-        public ImageSaver(Image image, File file, Activity activity, boolean autoUploadStatus, CameraCharacteristics cameraInfo) {
+        private final String uploadURL;
+
+        private final String location;
+
+        private final String time;
+
+        public ImageSaver(Image image, File file, Activity activity, boolean autoUploadStatus, CameraCharacteristics cameraInfo,
+        String url, String location, String time) {
             mImage = image;
             mFile = file;
             this.activity = activity;
             this.autoUploadStatus = autoUploadStatus;
             this.cameraInfo = cameraInfo;
+            this.uploadURL = url;
+            this.location = location;
+            this.time = time;
         }
 
         class uploadAsync implements Runnable {
             File name;
             Activity act;
             String url;
-            String username;
+            String location;
+            String time;
 
-            uploadAsync(Activity act, File name, String url, String username){
+            uploadAsync(Activity act, String url, String location, String time, File name){
                 this.name = name;
                 this.act = act;
                 this.url = url;
-                this.username = username;
+                this.location = location;
+                this.time = time;
 
             }
             public void run(){
-                new UploadImageTask().execute(act,url, name.getName(), username);
+                new UploadImageTask().execute(act,url, location, time, name);
             }
         }
 
@@ -1027,9 +1044,7 @@ public class CameraFragment extends Fragment
                         output.close();
                         if(autoUploadStatus){
                             Log.d("UPLOAD", "PROCESSING IMAGE AND UPLOAD");
-                            String url = null;
-                            String username = null;
-                            activity.runOnUiThread(new uploadAsync(activity, mFile, url, username));
+                            activity.runOnUiThread(new uploadAsync(activity, uploadURL, location, time, mFile));
                         }
                     } catch (IOException e) {
                         e.printStackTrace();

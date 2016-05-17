@@ -109,12 +109,6 @@ public class WiFiDirectActivity extends Activity {
                         new FileServerAsyncTask(WiFiDirectActivity.this, mChannel,mManager).execute();
                     } else if (info.groupFormed) {
                         WiFiDirectActivity.this.setConInfo(info);
-                        try {
-                            Thread.sleep(3000);
-                        } catch (InterruptedException e) {
-                            // TODO Auto-generated catch block
-                            e.printStackTrace();
-                        }
                         Log.d("TAG", "is Client");
                         Intent intent = new Intent();
                         intent.setType("image/*");
