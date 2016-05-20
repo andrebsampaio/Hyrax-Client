@@ -1,21 +1,17 @@
 package edu.thesis.fct.client;
 
-import android.app.Activity;
-import android.app.ProgressDialog;
+import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
-import android.media.Image;
-import android.net.Uri;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Environment;
+import android.os.IBinder;
+import android.support.annotation.Nullable;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -23,36 +19,29 @@ import com.android.volley.Request;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
- * Created by abs on 11-05-2016.
+ * Created by abs on 20-05-2016.
  */
-public class BluetoothActivity extends Activity {
+public class BluetoothService extends Service {
+
+    private static final String TAG = "BluetoothService";
+
+    private boolean isRunning  = false;
 
     private static final int REQUEST_ENABLE_BT = 1;
     private static final UUID UUID_KEY = UUID.fromString("fa87c0d0-afac-11de-8a39-0800200c9a66");
@@ -60,6 +49,13 @@ public class BluetoothActivity extends Activity {
     IntentFilter filter;
     List<ImageModel> images;
     Map<String, List<ImageModel>> deviceImageIndex = new HashMap<>();
+
+    @Override
+    public void onCreate() {
+        Log.i(TAG, "Service onCreate");
+
+        isRunning = true;
+    }
 
     private void getImages(String url, final String username){
 
@@ -191,30 +187,6 @@ public class BluetoothActivity extends Activity {
         }
     }
 
-    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            // When discovery finds a device
-            if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-                // Get the BluetoothDevice object from the Intent
-                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-
-                List<ImageModel> imageList = checkDownloaded(deviceImageIndex.get(device.getAddress()));
-                if (imageList != null && imageList.size() > 0){
-                    Log.d("BT DEBUG", "im client");
-                    Thread connect = new ConnectThread(device, imageList);
-                    connect.start();
-                } else {
-                    Log.d("BT DEBUG", "All files already downloaded, searching again");
-                    searchForBluetoothDevices();
-                }
-
-                Log.e("Bluetooth Device", device.getName() + " " + device.getAddress());
-            }
-        }
-    };
-
-
     private List<ImageModel> checkDownloaded(List<ImageModel> toDownload){
         if (toDownload == null) return null;
         List<ImageModel> filtered = new ArrayList<>();
@@ -226,21 +198,7 @@ public class BluetoothActivity extends Activity {
         return filtered;
     }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        /*if (!Build.MODEL.equals("m2")){
-            getImages("http://192.168.1.243:8080/hyrax-server/rest/search", "george_clooney");
-        } else {
-            turnBluetoothOn();
-        }*/
-        Intent intent = new Intent(this, BluetoothService.class);
-        startService(intent);
-
-
-    }
-
-    private void turnBluetoothOn() {
+    private void turnBluetoothOn(Context context) {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (mBluetoothAdapter == null) {
             Toast.makeText(this, "This device does not support bluetooth!!", Toast.LENGTH_LONG).show();
@@ -248,75 +206,43 @@ public class BluetoothActivity extends Activity {
         }
 
         if (!mBluetoothAdapter.isEnabled()) {
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+            Intent btIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            btIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(btIntent);
         } else {
             Log.d("BT DEBUG", "im server");
             Thread server = new ListeningThread(this);
             server.start();
-            searchForBluetoothDevices();
         }
     }
+
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if(resultCode == RESULT_OK && requestCode == REQUEST_ENABLE_BT){
-            searchForBluetoothDevices();
+    public int onStartCommand(Intent intent, int flags, int startId) {
+
+        Log.i(TAG, "Service onStartCommand");
+
+        turnBluetoothOn(this);
+        if (!Build.MODEL.equals("m2")){
+            getImages("http://192.168.1.243:8080/hyrax-server/rest/search", "george_clooney");
         }
+        turnBluetoothOn(this);
+
+        return Service.START_STICKY;
     }
 
-    /* register the broadcast receiver with the intent values to be matched */
+
     @Override
-    protected void onResume() {
-        super.onResume();
-//        registerReceiver(mReceiver, filter);
+    public IBinder onBind(Intent arg0) {
+        Log.i(TAG, "Service onBind");
+        return null;
     }
-    /* unregister the broadcast receiver */
+
     @Override
-    protected void onPause() {
-        super.onPause();
- //       unregisterReceiver(mReceiver);
-    }
+    public void onDestroy() {
 
-    private void searchForBluetoothDevices() {
-        if(mBluetoothAdapter.getScanMode() != BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE)
-        {
-            Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-            intent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 30);
-            startActivity(intent);
-        }
-        boolean discovery = mBluetoothAdapter.startDiscovery();
-        if(discovery) {
-            filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-            registerReceiver(mReceiver, filter);
-        } else {
-            Toast.makeText(this, "Error in starting discovery", Toast.LENGTH_LONG).show();
-        }
-    }
+        isRunning = false;
 
-    private void copyStream(InputStream input, OutputStream output, Long fileSize)
-            throws IOException
-    {
-        int bytesRead = 0;
-        try {
-            int bufferSize = 1024;
-            byte[] buffer = new byte[bufferSize];
-
-            // we need to know how may bytes were read to write them to the byteBuffer
-            Long len = fileSize;
-
-            while (len > 0) {
-                int bytes = input.read(buffer, 0, buffer.length);
-                bytesRead += bytes;
-                len -= bytes;
-                output.write(buffer, 0, bytes);
-            }
-            Log.d("BT DEBUG", bytesRead+"");
-        } finally {
-            Log.d("BT DEBUG", bytesRead+"");
-            output.flush();
-            //output.close();
-        }
+        Log.i(TAG, "Service onDestroy");
     }
 
     private class ConnectThread extends Thread{
@@ -481,14 +407,6 @@ public class BluetoothActivity extends Activity {
                 if (socket != null) {
                     final String name = socket.getRemoteDevice().getName();
 
-                    runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            // TODO Auto-generated method stub
-                            Toast.makeText(getApplicationContext(), "A connection has been accepted from " + name, Toast.LENGTH_LONG).show();
-                        }
-                    });
                     ConnectedThread connected = new ConnectedThread(socket);
                     connected.start();
                     /*try {
@@ -527,7 +445,7 @@ public class BluetoothActivity extends Activity {
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 context.startActivity(intent);
                 return;
-            };
+            }
             /*public void run()
             {
                 BufferedInputStream bis;

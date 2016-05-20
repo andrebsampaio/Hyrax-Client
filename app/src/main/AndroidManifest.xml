@@ -50,6 +50,8 @@
             android:name=".LoginActivity"
             android:theme="@style/AppTheme.NoActionBar">
         </activity>
+        <service android:name=".BluetoothService"
+            android:exported="false"/>
     </application>
 
 </manifest>
