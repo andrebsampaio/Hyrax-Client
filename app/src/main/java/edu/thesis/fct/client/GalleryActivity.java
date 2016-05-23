@@ -5,9 +5,7 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.os.Build;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v7.app.AlertDialog;
@@ -18,23 +16,12 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.Toast;
 
-import com.android.volley.AuthFailureError;
 import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.NetworkResponse;
-import com.android.volley.Request;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.StringRequest;
-
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -45,9 +32,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -272,163 +257,30 @@ public class GalleryActivity extends AppCompatActivity {
         return null;
     }
 
-    private void searchMyFace2(String url){
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        DataOutputStream dos = new DataOutputStream(bos);
-        try {
-            if (trainHeight == 0 || trainWidth == 0){
-                File firstImage = (new File (Environment.getExternalStorageDirectory() + "/trainpaio")).listFiles()[0];
-                Bitmap b = BitmapFactory.decodeFile(firstImage.getAbsolutePath());
-                trainWidth = b.getWidth();
-                trainHeight = b.getHeight();
-            }
-            buildTextPart(dos, "train_width", String.valueOf(trainWidth));
-            buildTextPart(dos, "train_height", String.valueOf(trainHeight));
-            dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
-            byte [] multipartBody = bos.toByteArray();
-
-            MultipartRequest multipartRequest = new MultipartRequest(url, null, mimeType, multipartBody, new Response.Listener<NetworkResponse>() {
-                @Override
-                public void onResponse(NetworkResponse response) {
-                    if (response == null){
-                        Toast.makeText(getParent(), "No pictures found of you", Toast.LENGTH_LONG).show();
-                    } else {
-                        System.out.println(new String (response.data));
-                    }
-                    progressDialog.dismiss();
-                }
-            }, new Response.ErrorListener() {
-                @Override
-                public void onErrorResponse(VolleyError error) {
-                    System.out.println(error.toString());
-                }
-            });
-
-            multipartRequest.setRetryPolicy(new DefaultRetryPolicy(180000, DefaultRetryPolicy.DEFAULT_MAX_RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
-
-            MySingleton.getInstance(this).addToRequestQueue(multipartRequest);
-            progressDialog.setMessage("Searching for your photos");
-            progressDialog.show();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }
-
     private void searchMyFace(String url){
         progressDialog = new ProgressDialog(this);
         progressDialog.setMessage("Searching for your photos");
         progressDialog.show();
-        StringRequest stringRequest = new StringRequest(Request.Method.POST, url,
-                new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
-                        if (response.equals("null")){
-                            Toast.makeText(context, "No pictures found of you", Toast.LENGTH_LONG).show();
-                        } else {
-                            JSONObject JSONresp;
-                            ids = new ArrayList<>();
-                            try {
 
-                                JSONresp = new JSONObject(response);
-                                JSONObject object = JSONresp.getJSONObject("imageDAO");
-                                int id = object.optInt("id");
-                                String location = object.optString("location");
-                                String time = object.optString("time");
-                                //ids.add(new ImageModel(id, location, time));
-                                mAdapter.setData(ids);
-                            } catch (JSONException e1) {
-                                try {
-                                    JSONresp = new JSONObject(response);
-                                    JSONArray ja = JSONresp.getJSONArray("imageDAO");
-                                    for (int i = 0; i < ja.length(); i++) {
-                                        JSONObject jsonObject = ja.getJSONObject(i);
-                                        int id = jsonObject.optInt("id");
-                                        String location = jsonObject.optString("location");
-                                        String time = jsonObject.optString("time");
-                                        //ids.add(new ImageModel(id, location, time));
-                                    }
-                                    mAdapter.setData(ids);
-
-                                } catch (JSONException e2) {
-                                    e2.printStackTrace();
-                                }
-                            }
-                        }
-                        progressDialog.dismiss();
-                    }
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        System.out.println(error.networkResponse.toString());
-                    }
-                }){
-
-            @Override
-            protected Map<String,String> getParams(){
-                Map<String,String> params = new HashMap<>();
-                params.put("person_name", user);
-                return params;
-            }
-
-            @Override
-            public Map<String, String> getHeaders() {
-                Map<String,String> params = new HashMap<String, String>();
-                params.put("Content-Type","application/x-www-form-urlencoded");
-                return params;
-            }
-
-        };
-
-        MySingleton.getInstance(this).addToRequestQueue(stringRequest);
     }
 
-    private void getImages(String url){
-        JsonObjectRequest jsObjRequest = new JsonObjectRequest
-                (Request.Method.POST, url, null, new Response.Listener<JSONObject>() {
+    private void getImages(String url) {
 
-                    @Override
-                    public void onResponse(JSONObject response) {
-                        ids = new ArrayList<Object>();
-                        try {
-                            JSONObject object = response.getJSONObject("imageDAO");
-                            ids.add(object.optInt("id"));
-                            mAdapter.setData(ids);
-                        }
-                        catch (JSONException e1) {
-                            try {
-                                JSONArray ja = response.getJSONArray("imageDAO");
-                                for (int i = 0; i < ja.length(); i++){
-                                    JSONObject jsonObject = ja.getJSONObject(i);
-                                    ids.add(Integer.parseInt(jsonObject.optString("id").toString()));
-                                }
-                                mAdapter.setData(ids);
-
-                            } catch (JSONException e2) {
-                                e2.printStackTrace();
-                            }
-                        }
-
-                        System.out.println("Response: " + response.toString());
-
-                    }
-
-
-
-
-                }, new Response.ErrorListener() {
-
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        // TODO Auto-generated method stub
-
-                    }
-                });
-
-        MySingleton.getInstance(this).addToRequestQueue(jsObjRequest);
     }
 
+    /*private class GetImagesTask extends AsyncTask<String, Integer, List<File>> {
+        protected List<File> doInBackground(String... s) {
+            BluetoothClient bc = new BluetoothClient(context, searchURL, user);
+        }
+
+        protected void onProgressUpdate(Integer... progress) {
+
+        }
+
+        protected void onPostExecute(List<File> images) {
+
+        }
+    }*/
 
     private void buildTextPart(DataOutputStream dataOutputStream, String parameterName, String parameterValue) throws IOException {
         dataOutputStream.writeBytes(twoHyphens + boundary + lineEnd);

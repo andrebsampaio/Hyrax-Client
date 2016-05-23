@@ -123,7 +123,7 @@ public class WiFiDirectActivity extends Activity {
 
 
 
-        mReceiver = new WiFiDirectBroadcastReceiver(mManager, mChannel, this, mPeerListListener, mConnectionListener);
+        mReceiver = new WiFiDirectBroadcastReceiver(mManager, mChannel, mPeerListListener, mConnectionListener);
 
         mIntentFilter = new IntentFilter();
         mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
