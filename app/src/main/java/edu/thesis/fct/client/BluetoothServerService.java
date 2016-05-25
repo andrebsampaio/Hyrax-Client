@@ -6,20 +6,13 @@ import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
 
-import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 public class BluetoothServerService extends Service {
@@ -121,7 +114,7 @@ public class BluetoothServerService extends Service {
             }
 
             public void run(){
-                WifiDirectService wd = new WifiDirectService(context, false, null, null);
+                WifiDirectTransfer wd = new WifiDirectTransfer(context, false, null, null,null, null);
             }
 
 

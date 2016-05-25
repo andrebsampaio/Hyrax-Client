@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v7.app.AlertDialog;
@@ -14,9 +13,6 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
-import android.view.WindowManager;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.android.volley.Request;
@@ -27,28 +23,23 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 
 import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
 import java.util.HashMap;
 import java.util.Map;
 
 import uk.co.senab.photoview.PhotoView;
-import uk.co.senab.photoview.PhotoViewAttacher;
 
 /**
  * Created by abs on 28-04-2016.
  */
 public class ImageDetailActivity extends AppCompatActivity {
-    String imageURL;
+    String imagePath;
     String location;
     String time;
     ProgressDialog progressDialog;
@@ -69,10 +60,8 @@ public class ImageDetailActivity extends AppCompatActivity {
 
         context = this;
 
-        imageId = getIntent().getIntExtra("id", 0);
-        imageURL = getIntent().getStringExtra("image");
-        location = getIntent().getStringExtra("location");
-        time = getIntent().getStringExtra("time");
+        imagePath = getIntent().getStringExtra("image");
+        File file = new File(imagePath);
         SharedPreferences pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
         username = pref.getString("username", null);
 
@@ -83,10 +72,10 @@ public class ImageDetailActivity extends AppCompatActivity {
             untagURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/untag/";
         }
 
-        toolbar.setTitle(location + time);
+        toolbar.setTitle(file.getName().split("\\.")[0]);
 
 
-        Glide.with(this).load(imageURL)
+        Glide.with(this).load(new File(imagePath))
                 .thumbnail(0.5f)
                 .placeholder(android.R.drawable.progress_indeterminate_horizontal)
                 .diskCacheStrategy(DiskCacheStrategy.NONE)
@@ -109,7 +98,7 @@ public class ImageDetailActivity extends AppCompatActivity {
                 progressDialog.show();
                 String path = Environment.getExternalStorageDirectory() + File.separator + "Hyrax" +
                         File.separator + location + time + File.separator + location + time + ".jpg";
-                new DownloadFilesTask().execute(new File(path), imageURL, this);
+                new DownloadFilesTask().execute(new File(path), imagePath, this);
                 break;
             case R.id.notMe:
                 new AlertDialog.Builder(this)

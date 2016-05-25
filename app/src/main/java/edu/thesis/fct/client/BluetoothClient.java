@@ -1,11 +1,13 @@
 package edu.thesis.fct.client;
 
+import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.Environment;
 import android.util.Log;
 import android.widget.Toast;
@@ -22,7 +24,6 @@ import org.json.JSONObject;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,11 +48,21 @@ public class BluetoothClient {
     Map<UserDevice, List<ImageModel>> deviceImageIndex = new HashMap<>();
     Context context;
     private boolean isRequesting;
+    private ProgressDialog progressDialog;
+    GalleryAdapter mAdapter;
+    String mMacBT;
+    String mMacWD;
 
-    public BluetoothClient(Context context, String url, String username){
+    public BluetoothClient(Context context, String url, String username, ProgressDialog progressDialog, GalleryAdapter mAdapter){
         this.context = context;
+        this.mAdapter = mAdapter;
+        this.progressDialog = progressDialog;
         turnBluetoothOn(context);
         getImages(url, username);
+
+        SharedPreferences pref = context.getApplicationContext().getSharedPreferences("MyPref", context.MODE_PRIVATE);
+        this.mMacBT = pref.getString("macbt", null);
+        this.mMacWD = pref.getString("macwd", null);
     }
 
     private void getImages(String url, final String username){
@@ -204,18 +215,21 @@ public class BluetoothClient {
 
     private void retrievePhotosFromDevices(){
         for (UserDevice u : deviceImageIndex.keySet()){
-            List<ImageModel> imageList = checkDownloaded(deviceImageIndex.get(u));
-            BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(u.getMacBT());
-            if (imageList != null && imageList.size() > 0) {
-                Log.d("BT DEBUG", "im client");
-                Thread connect = new ConnectThread(device, imageList, u.getMacWD());
-                connect.start();
-                try {
-                    connect.join();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+            if (!u.getMacBT().equals(mMacBT) && !u.getMacWD().equals(mMacWD)){
+                List<ImageModel> imageList = checkDownloaded(deviceImageIndex.get(u));
+                BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(u.getMacBT());
+                if (imageList != null && imageList.size() > 0) {
+                    Log.d("BT DEBUG", "im client");
+                    Thread connect = new ConnectThread(device, imageList, u.getMacWD());
+                    connect.start();
+                    try {
+                        connect.join();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
+
         }
     }
 
@@ -296,7 +310,7 @@ public class BluetoothClient {
         }
         public void run(){
 
-            WifiDirectService wd = new WifiDirectService(context, true, wifiMac, imageNames);
+            WifiDirectTransfer wd = new WifiDirectTransfer(context, true, wifiMac, imageNames, progressDialog, mAdapter);
 
         }
     }

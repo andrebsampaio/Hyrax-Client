@@ -1,11 +1,13 @@
 package edu.thesis.fct.client;
 
+import android.app.ProgressDialog;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
@@ -22,6 +24,12 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -37,12 +45,16 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by abs on 21-05-2016.
  */
-public class WifiDirectService {
+public class WifiDirectTransfer {
+
+    final String addDeviceURL;
 
     boolean connected = false;
     static final String TAG = "WD Service";
@@ -56,19 +68,34 @@ public class WifiDirectService {
     String macAddress;
     boolean isRequesting;
     List<ImageModel> images;
-
+    final ProgressDialog progressDialog;
+    GalleryAdapter mAdapter;
+    String mMacBT;
+    String mMacWD;
 
 
     private boolean checkAddress(String address1, String address2){
         return address1.substring(2).equals(address2.substring(2));
     }
 
-    public WifiDirectService(final Context context, final boolean isRequesting, final String macAddress, final List<ImageModel> images) {
+    public WifiDirectTransfer(final Context context, final boolean isRequesting, final String macAddress, final List<ImageModel> images, final ProgressDialog progressDialog, final GalleryAdapter mAdapter) {
         this.context = context;
+
+        NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
+        Log.d("NIH", nih.getHost() + "");
+        if (nih.getHost() != null){
+            addDeviceURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/upload/";
+        } else addDeviceURL = null;
+
         this.isRequesting = isRequesting;
         this.macAddress = macAddress;
         this.images = images;
-        mManager = (WifiP2pManager) context.getSystemService(Context.WIFI_P2P_SERVICE);
+        this.mAdapter = mAdapter;
+        this.progressDialog = progressDialog;
+        SharedPreferences pref = context.getApplicationContext().getSharedPreferences("MyPref", context.MODE_PRIVATE);
+        this.mMacBT = pref.getString("macbt", null);
+        this.mMacWD = pref.getString("macwd", null);
+        this.mManager = (WifiP2pManager) context.getSystemService(Context.WIFI_P2P_SERVICE);
         mChannel = mManager.initialize(context, context.getMainLooper(), null);
         mPeerListListener = new WifiP2pManager.PeerListListener() {
             @Override
@@ -135,7 +162,7 @@ public class WifiDirectService {
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
-                        new FileClientAsyncTask(info.groupOwnerAddress, 9991, images).execute();
+                        new FileClientAsyncTask(context, info.groupOwnerAddress, 9991, images, progressDialog, mAdapter, new UserDevice(mMacBT,mMacWD), addDeviceURL).execute();
                     }
                 }
                 connected = true;
@@ -211,6 +238,14 @@ public class WifiDirectService {
 
     }
 
+    private static List<File> getHyraxPhotos(){
+        File file = new File(Environment.getExternalStorageDirectory().getPath() + File.separator + "Hyrax");
+        List<File> res = new ArrayList<>();
+        for (File f : file.listFiles()){
+            res.add(new File(f.getAbsolutePath() + File.separator + f.getName() + ".jpg"));
+        }
+        return res;
+    }
 
     public static class FileClientAsyncTask extends AsyncTask<Object, String, Void> {
 
@@ -218,11 +253,28 @@ public class WifiDirectService {
         int port;
         Socket socket;
         List<ImageModel> imageNames;
+        ProgressDialog progressDialog;
+        GalleryAdapter mAdapter;
+        Context context;
+        UserDevice myDevice;
+        String addDeviceURL;
 
-        public FileClientAsyncTask(InetAddress address, int port, List<ImageModel> imagesNames) {
+        public FileClientAsyncTask(Context context, InetAddress address, int port, List<ImageModel> imagesNames, ProgressDialog progressDialog, GalleryAdapter mAdapter, UserDevice myDevice, String addDeviceURL) {
             this.address = address;
+            this.mAdapter = mAdapter;
             this.port = port;
             this.imageNames = imagesNames;
+            this.progressDialog = progressDialog;
+            this.context = context;
+            this.myDevice = myDevice;
+            this.addDeviceURL = addDeviceURL;
+        }
+
+        @Override
+        protected void onPostExecute(Void result){
+
+            mAdapter.setData(new ArrayList<Object>(getHyraxPhotos()));
+            progressDialog.hide();
         }
 
         @Override
@@ -231,7 +283,7 @@ public class WifiDirectService {
             try {
 
                 socket = new Socket(address, port);
-                socket.setSoTimeout(700000);
+                socket.setSoTimeout(7000);
 
                 DataInputStream input = new DataInputStream(socket.getInputStream());
                 DataOutputStream output = new DataOutputStream(socket.getOutputStream());
@@ -256,6 +308,8 @@ public class WifiDirectService {
                     OutputStream bos = new BufferedOutputStream(fos);
 
                     copyStream(input, bos,fileSize);
+
+                    sendDeviceToIndex(context, getImageModelByName(nameSplit[0],imageNames).getId(), myDevice.getMacBT(), myDevice.getMacWD(), addDeviceURL);
                 }
 
                 final String sentMsg = "File received";
@@ -279,6 +333,38 @@ public class WifiDirectService {
             }
             return null;
         }
+    }
+
+    private static ImageModel getImageModelByName(String name, List<ImageModel> images){
+        for (ImageModel i : images){
+            if (i.getPhotoName().equals(name)) return i;
+        }
+        return null;
+    }
+
+    private static void sendDeviceToIndex(final Context context, final int id, final String macBT, final String macWD, String url){
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, url,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        Toast.makeText(context, "Device added to index" ,Toast.LENGTH_SHORT).show();
+                    }
+                }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                System.out.println(error.toString());
+            }
+        }) {
+            @Override
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<String, String>();
+                params.put("imageid", String.valueOf(id));
+                params.put("macwd", macWD);
+                params.put("macbt", macBT);
+                return params;
+            }
+        };
+        Volley.newRequestQueue(context).add(stringRequest);
     }
 
     public static class FileServerAsyncTask extends AsyncTask<Object, String, String> {

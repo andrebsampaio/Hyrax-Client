@@ -32,6 +32,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -116,10 +117,9 @@ public class GalleryActivity extends AppCompatActivity {
         recyclerView.setHasFixedSize(true); // Helps improve performance
 
         if (registration){
-            mAdapter = new GalleryAdapter(activity,null,takenPhotos);
+            mAdapter = new GalleryAdapter(activity,null,takenPhotos, true);
         } else{
-            mAdapter = new GalleryAdapter(activity, imagesURL,null);
-            searchMyFace(searchURL);
+            mAdapter = new GalleryAdapter(activity, null,getHyraxPhotos(), false);
         }
 
         recyclerView.setAdapter(mAdapter);
@@ -155,7 +155,7 @@ public class GalleryActivity extends AppCompatActivity {
                 dialog.show();
                 return true;
             case R.id.searchPictures:
-                this.searchMyFace(searchURL);
+                this.searchMyFace();
             default:
                 return super.onOptionsItemSelected(item);
         }
@@ -257,30 +257,37 @@ public class GalleryActivity extends AppCompatActivity {
         return null;
     }
 
-    private void searchMyFace(String url){
+    private void searchMyFace(){
         progressDialog = new ProgressDialog(this);
         progressDialog.setMessage("Searching for your photos");
         progressDialog.show();
-
+        new GetImagesTask().execute();
     }
 
-    private void getImages(String url) {
 
+    private List<File> getHyraxPhotos(){
+        File file = new File(Environment.getExternalStorageDirectory().getPath() + File.separator + "Hyrax");
+        List<File> res = new ArrayList<>();
+        for (File f : file.listFiles()){
+            res.add(new File(f.getAbsolutePath() + File.separator + f.getName() + ".jpg"));
+        }
+        return res;
     }
 
-    /*private class GetImagesTask extends AsyncTask<String, Integer, List<File>> {
-        protected List<File> doInBackground(String... s) {
-            BluetoothClient bc = new BluetoothClient(context, searchURL, user);
+    private class GetImagesTask extends AsyncTask<Void, Void, Void> {
+
+        List<Object> images;
+
+        protected Void doInBackground(Void... s) {
+
+            new BluetoothClient(context, searchURL, user, progressDialog, mAdapter);
+            return null;
         }
 
-        protected void onProgressUpdate(Integer... progress) {
+        protected void onProgressUpdate(Void... progress) {
 
         }
-
-        protected void onPostExecute(List<File> images) {
-
-        }
-    }*/
+    }
 
     private void buildTextPart(DataOutputStream dataOutputStream, String parameterName, String parameterValue) throws IOException {
         dataOutputStream.writeBytes(twoHyphens + boundary + lineEnd);

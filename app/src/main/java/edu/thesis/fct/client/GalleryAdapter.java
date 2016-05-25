@@ -3,6 +3,7 @@ package edu.thesis.fct.client;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Environment;
 import android.support.v7.widget.RecyclerView;
 import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
@@ -21,12 +22,14 @@ public class GalleryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     Context context;
     List<Object> data = new ArrayList<Object>();
     String URL;
+    boolean isRegistration;
     SparseBooleanArray selected;
 
-    public GalleryAdapter(Context context, String URL, List<File> images) {
+    public GalleryAdapter(Context context, String URL, List<File> images, boolean isRegistration) {
         this.context = context;
         this.URL = URL;
         selected = new SparseBooleanArray();
+        this.isRegistration = isRegistration;
         if (this.URL == null){
             data.addAll(images);
         }
@@ -98,7 +101,7 @@ public class GalleryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
         @Override
         public void onClick(View v) {
-            if (URL == null){
+            if (URL == null && isRegistration){
                 if (selected.get(getLayoutPosition(), false)) {
                     selected.delete(getLayoutPosition());
                     v.findViewById(R.id.selectedIndicator).setVisibility(View.INVISIBLE);
@@ -108,13 +111,9 @@ public class GalleryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     v.findViewById(R.id.selectedIndicator).setVisibility(View.VISIBLE);
                 }
             } else {
-                ImageModel i = (ImageModel) data.get(getLayoutPosition());
-                String link = URL + i.getId();
+                File i = (File) data.get(getLayoutPosition());
                 Intent intent = new Intent(context, ImageDetailActivity.class);
-                intent.putExtra("id", i.getId());
-                intent.putExtra("image", link);
-                intent.putExtra("location", i.getLocation());
-                intent.putExtra("time", i.getTime());
+                intent.putExtra("image", i.getAbsolutePath());
                 context.startActivity(intent);
             }
 

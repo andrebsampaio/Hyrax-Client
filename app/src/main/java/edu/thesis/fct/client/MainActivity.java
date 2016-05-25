@@ -3,11 +3,14 @@ package edu.thesis.fct.client;
 
 import android.app.Activity;
 import android.app.Fragment;
+import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v4.view.ViewPager;
@@ -44,6 +47,17 @@ public class MainActivity extends AppCompatActivity {
         startService(intent);
 
         SharedPreferences pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
+        SharedPreferences.Editor editor = pref.edit();
+        WifiManager wifiMan = (WifiManager) this
+                .getSystemService(Context.WIFI_SERVICE);
+        WifiInfo wifiInf = wifiMan.getConnectionInfo();
+        String macAddressWD = wifiInf.getMacAddress();
+        String macaddressBT = BluetoothAdapter.getDefaultAdapter().getAddress();
+
+        editor.putString("macwd", macAddressWD);
+        editor.putString("macbt", macaddressBT);
+        editor.commit();
+
 
         username = pref.getString("username",null);
 
