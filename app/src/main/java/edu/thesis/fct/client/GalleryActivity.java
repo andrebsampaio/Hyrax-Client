@@ -276,11 +276,9 @@ public class GalleryActivity extends AppCompatActivity {
 
     private class GetImagesTask extends AsyncTask<Void, Void, Void> {
 
-        List<Object> images;
-
         protected Void doInBackground(Void... s) {
 
-            new BluetoothClient(context, searchURL, user, progressDialog, mAdapter);
+            new BluetoothClient(context,progressDialog, mAdapter).startConnection(searchURL, user);
             return null;
         }
 

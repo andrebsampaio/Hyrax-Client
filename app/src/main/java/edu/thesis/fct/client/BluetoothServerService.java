@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
@@ -20,6 +21,8 @@ public class BluetoothServerService extends Service {
     final static String TAG = "BT SERVER SERVICE";
     BluetoothAdapter mBluetoothAdapter;
     private static final UUID UUID_KEY = UUID.fromString("fa87c0d0-afac-11de-8a39-0800200c9a66");
+    private boolean hasWD;
+    private boolean occupied = false;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -32,6 +35,9 @@ public class BluetoothServerService extends Service {
         super.onStartCommand(intent, flags, startId);
 
         Log.i(TAG, "Service onStartCommand");
+
+        SharedPreferences pref = this.getApplicationContext().getSharedPreferences("MyPref", this.MODE_PRIVATE);
+        this.hasWD = pref.getBoolean("haswd", false);
 
         turnBluetoothOn(this);
 
@@ -77,14 +83,13 @@ public class BluetoothServerService extends Service {
             while (true) {
                 try {
                     socket = mServerSocket.accept();
-                } catch (IOException e) {
-                    break;
-                }
-                if (socket != null) {
-                    final String name = socket.getRemoteDevice().getName();
+                    if (socket != null) {
+                        final String name = socket.getRemoteDevice().getName();
 
-                    ConnectedThread connected = new ConnectedThread(socket, context);
-                    connected.start();
+                        ConnectedThread connected = new ConnectedThread(socket, context);
+                        connected.start();
+                    }
+                } catch (IOException e) {
                     break;
                 }
             }
@@ -114,7 +119,31 @@ public class BluetoothServerService extends Service {
             }
 
             public void run(){
-                WifiDirectTransfer wd = new WifiDirectTransfer(context, false, null, null,null, null);
+                boolean otherWD;
+                try {
+                    output.writeBoolean(hasWD);
+                    otherWD = input.readBoolean();
+                    if (hasWD && otherWD){
+                        new Thread() {
+                            public void run() {
+                                WifiDirectTransfer wd = new WifiDirectTransfer(context, false, null, null,null, null);
+                            }
+                        }.run();
+
+                    } else {
+                        //FALLBACK
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally{
+                    if (mSocket != null){
+                        try {
+                            mSocket.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
             }
 
 

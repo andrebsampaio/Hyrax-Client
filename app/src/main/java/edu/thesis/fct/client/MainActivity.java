@@ -7,6 +7,8 @@ import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.FeatureInfo;
+import android.content.pm.PackageManager;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.net.wifi.WifiInfo;
@@ -56,8 +58,8 @@ public class MainActivity extends AppCompatActivity {
 
         editor.putString("macwd", macAddressWD);
         editor.putString("macbt", macaddressBT);
+        editor.putBoolean("haswd", this.isWifiDirectSupported(this));
         editor.commit();
-
 
         username = pref.getString("username",null);
 
@@ -100,6 +102,17 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+    }
+
+    private boolean isWifiDirectSupported(Context ctx) {
+        PackageManager pm = ctx.getPackageManager();
+        FeatureInfo[] features = pm.getSystemAvailableFeatures();
+        for (FeatureInfo info : features) {
+            if (info != null && info.name != null && info.name.equalsIgnoreCase("android.hardware.wifi.direct")) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }

@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.os.AsyncTask;
 import android.os.Environment;
 import android.util.Log;
 import android.widget.Toast;
@@ -52,17 +53,64 @@ public class BluetoothClient {
     GalleryAdapter mAdapter;
     String mMacBT;
     String mMacWD;
+    boolean hasWD;
 
-    public BluetoothClient(Context context, String url, String username, ProgressDialog progressDialog, GalleryAdapter mAdapter){
+    public BluetoothClient(Context context, ProgressDialog progressDialog, GalleryAdapter mAdapter){
         this.context = context;
         this.mAdapter = mAdapter;
         this.progressDialog = progressDialog;
-        turnBluetoothOn(context);
-        getImages(url, username);
 
         SharedPreferences pref = context.getApplicationContext().getSharedPreferences("MyPref", context.MODE_PRIVATE);
         this.mMacBT = pref.getString("macbt", null);
         this.mMacWD = pref.getString("macwd", null);
+        this.hasWD = pref.getBoolean("haswd", false);
+    }
+
+    public void startConnection(String url, String username){
+        turnBluetoothOn(context);
+        getImages(url, username);
+    }
+
+    private class IndexProcess extends AsyncTask<Void, Void, Void> {
+
+        String response;
+
+        public IndexProcess(String response){
+            this.response = response;
+        }
+
+        protected Void doInBackground(Void... s) {
+            if (response.equals("null")){
+                //Toast.makeText(context, "No pictures found of you", Toast.LENGTH_LONG).show();
+            } else {
+                images = new ArrayList<>();
+                deviceImageIndex = new HashMap<>();
+                JSONObject JSONresp;
+                try {
+                    JSONresp = new JSONObject(response);
+                    JSONObject object = JSONresp.getJSONObject("imageDAO");
+                    processImageJSON(object);
+                } catch (JSONException e1) {
+                    try {
+                        JSONresp = new JSONObject(response);
+                        JSONArray ja = JSONresp.getJSONArray("imageDAO");
+                        for (int i = 0; i < ja.length(); i++) {
+                            JSONObject jsonObject = ja.getJSONObject(i);
+                            processImageJSON(jsonObject);
+                        }
+
+                    } catch (JSONException e2) {
+                        e2.printStackTrace();
+                    }
+                }
+                retrievePhotosFromDevices();
+            }
+            return null;
+        }
+
+        protected void onProgressUpdate(Void... progress) {
+
+        }
     }
 
     private void getImages(String url, final String username){
@@ -71,32 +119,8 @@ public class BluetoothClient {
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-                        if (response.equals("null")){
-                            //Toast.makeText(context, "No pictures found of you", Toast.LENGTH_LONG).show();
-                        } else {
 
-                            images = new ArrayList<>();
-                            deviceImageIndex = new HashMap<>();
-                            JSONObject JSONresp;
-                            try {
-                                JSONresp = new JSONObject(response);
-                                JSONObject object = JSONresp.getJSONObject("imageDAO");
-                                processImageJSON(object);
-                            } catch (JSONException e1) {
-                                try {
-                                    JSONresp = new JSONObject(response);
-                                    JSONArray ja = JSONresp.getJSONArray("imageDAO");
-                                    for (int i = 0; i < ja.length(); i++) {
-                                        JSONObject jsonObject = ja.getJSONObject(i);
-                                        processImageJSON(jsonObject);
-                                    }
-
-                                } catch (JSONException e2) {
-                                    e2.printStackTrace();
-                                }
-                            }
-                            retrievePhotosFromDevices();
-                        }
+                        new IndexProcess(response).execute();
 
                     }
                 },
@@ -309,8 +333,30 @@ public class BluetoothClient {
 
         }
         public void run(){
+            boolean otherWD;
+            try {
+                otherWD = input.readBoolean();
+                output.writeBoolean(hasWD);
+                if (hasWD && otherWD){
+                    new Thread() {
+                        public void run() {
+                            WifiDirectTransfer wd = new WifiDirectTransfer(context, true, wifiMac, imageNames, progressDialog, mAdapter);
+                        }
+                    }.run();
 
-            WifiDirectTransfer wd = new WifiDirectTransfer(context, true, wifiMac, imageNames, progressDialog, mAdapter);
+                } else {
+                    //FALLBACK
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally{
+                try {
+                    mSocket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
 
         }
     }
