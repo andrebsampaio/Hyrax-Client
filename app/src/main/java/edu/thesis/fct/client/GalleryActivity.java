@@ -71,6 +71,8 @@ public class GalleryActivity extends AppCompatActivity {
     final String mimeType = "multipart/form-data;boundary=" + boundary;
     ProgressDialog progressDialog;
     String user;
+    InstrumentationUtils iu;
+    boolean first = true;
     private static final int MIN_PHOTOS = 8;
 
 
@@ -125,11 +127,12 @@ public class GalleryActivity extends AppCompatActivity {
         recyclerView = (RecyclerView) findViewById(R.id.image_grid);
         recyclerView.setLayoutManager(new GridLayoutManager(activity, 3));
         recyclerView.setHasFixedSize(true); // Helps improve performance
-
         if (registration){
-            mAdapter = new GalleryAdapter(activity,null,takenPhotos);
+            mAdapter = new GalleryAdapter(activity,null,takenPhotos,iu);
         } else{
-            mAdapter = new GalleryAdapter(activity, imagesURL,null);
+            iu = new InstrumentationUtils(this);
+            mAdapter = new GalleryAdapter(activity, imagesURL,null,iu);
+            iu.startTest();
             searchMyFace(searchURL);
         }
 
@@ -312,6 +315,13 @@ public class GalleryActivity extends AppCompatActivity {
     }
 
     private void searchMyFace(String url){
+        if (first){
+            first = false;
+        } else {
+            iu = new InstrumentationUtils(this);
+            mAdapter.setIU(iu);
+            iu.startTest();
+        }
         progressDialog = new ProgressDialog(this);
         progressDialog.setMessage("Searching for your photos");
         progressDialog.show();
@@ -319,6 +329,7 @@ public class GalleryActivity extends AppCompatActivity {
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
+                        iu.calculateLatency(InstrumentationUtils.IMG_LIST_RQ);
                         if (response == null){
                             Toast.makeText(getParent(), "No pictures found of you", Toast.LENGTH_LONG).show();
                         } else {
@@ -378,6 +389,7 @@ public class GalleryActivity extends AppCompatActivity {
         };
 
         MySingleton.getInstance(this).addToRequestQueue(stringRequest);
+        iu.registerLatency(InstrumentationUtils.IMG_LIST_RQ);
     }
 
     private void getImages(String url){

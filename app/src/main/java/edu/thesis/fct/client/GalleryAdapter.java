@@ -12,6 +12,9 @@ import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.bumptech.glide.load.resource.drawable.GlideDrawable;
+import com.bumptech.glide.request.animation.GlideAnimation;
+import com.bumptech.glide.request.target.GlideDrawableImageViewTarget;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -22,11 +25,17 @@ public class GalleryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     List<Object> data = new ArrayList<Object>();
     String URL;
     SparseBooleanArray selected;
+    SparseBooleanArray downloaded;
+    boolean takenTime = false;
+    boolean done = false;
+    InstrumentationUtils iu;
 
-    public GalleryAdapter(Context context, String URL, List<File> images) {
+    public GalleryAdapter(Context context, String URL, List<File> images, InstrumentationUtils iu) {
         this.context = context;
+        this.iu = iu;
         this.URL = URL;
         selected = new SparseBooleanArray();
+        downloaded = new SparseBooleanArray();
         if (this.URL == null){
             data.addAll(images);
         }
@@ -37,6 +46,12 @@ public class GalleryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         this.notifyDataSetChanged();
     }
 
+    public void setIU(InstrumentationUtils iu){
+        this.iu = iu;
+        done = false;
+        takenTime = false;
+        downloaded = new SparseBooleanArray();
+    }
 
     public List<File> getSelectedImages (){
         List<File> aux = new ArrayList<>();
@@ -63,12 +78,28 @@ public class GalleryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     public void onBindViewHolder(final RecyclerView.ViewHolder holder, final int position) {
 
         if (URL != null){
+            if (!takenTime){
+                iu.registerLatency(InstrumentationUtils.DOWNLOAD_RQ);
+                takenTime = true;
+            }
             Glide.with(context).load(URL + ((ImageModel) data.get(position)).getId())
                     .thumbnail(0.5f)
                     .placeholder(R.drawable.ic_image_photo_camera)
                     .diskCacheStrategy( DiskCacheStrategy.NONE )
                     .skipMemoryCache(true)
-                    .into(((MyItemHolder) holder).mImg);
+                    .into(new GlideDrawableImageViewTarget(((MyItemHolder) holder).mImg) {
+                        @Override public void onResourceReady(GlideDrawable resource, GlideAnimation<? super GlideDrawable> animation) {
+                            // here it's similar to RequestListener, but with less information (e.g. no model available)
+                            super.onResourceReady(resource, animation);
+                            System.out.println(downloaded.size());
+                            downloaded.put(position, true);
+                            if (downloaded.size() == data.size() && !done){
+                                iu.calculateLatency(InstrumentationUtils.DOWNLOAD_RQ);
+                                iu.endTest();
+                                done = true;
+                            }
+                        }
+                    });
 
         } else {
             Glide.with(context).load((File)data.get(position))
