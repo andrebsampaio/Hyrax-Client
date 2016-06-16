@@ -17,15 +17,20 @@ import com.android.volley.Request;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -54,11 +59,20 @@ public class BluetoothClient {
     String mMacBT;
     String mMacWD;
     boolean hasWD;
+    InstrumentationUtils iu;
+    final String addDeviceURL;
 
-    public BluetoothClient(Context context, ProgressDialog progressDialog, GalleryAdapter mAdapter){
+    public BluetoothClient(Context context, ProgressDialog progressDialog, GalleryAdapter mAdapter, InstrumentationUtils iu){
         this.context = context;
         this.mAdapter = mAdapter;
         this.progressDialog = progressDialog;
+        this.iu = iu;
+
+        NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
+        Log.d("NIH", nih.getHost() + "");
+        if (nih.getHost() != null){
+            addDeviceURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/adddevice/";
+        } else addDeviceURL = null;
 
         SharedPreferences pref = context.getApplicationContext().getSharedPreferences("MyPref", context.MODE_PRIVATE);
         this.mMacBT = pref.getString("macbt", null);
@@ -114,12 +128,15 @@ public class BluetoothClient {
     }
 
     private void getImages(String url, final String username){
-
         StringRequest stringRequest = new StringRequest(Request.Method.POST, url,
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-
+                        iu.calculateLatency(InstrumentationUtils.IMG_LIST_RQ);
+                        iu.calculateBytes(InstrumentationUtils.BYTES_C2S, InstrumentationUtils.RX);
+                        iu.calculateBytes(InstrumentationUtils.BYTES_C2S, InstrumentationUtils.TX);
+                        iu.calculatePackets(InstrumentationUtils.PACKETS_C2S, InstrumentationUtils.RX);
+                        iu.calculatePackets(InstrumentationUtils.PACKETS_C2S, InstrumentationUtils.TX);
                         new IndexProcess(response).execute();
 
                     }
@@ -148,6 +165,11 @@ public class BluetoothClient {
         };
 
         MySingleton.getInstance(context).addToRequestQueue(stringRequest);
+        iu.registerBytes(InstrumentationUtils.RX);
+        iu.registerBytes(InstrumentationUtils.TX);
+        iu.registerPackets(InstrumentationUtils.RX);
+        iu.registerPackets(InstrumentationUtils.TX);
+        iu.registerLatency(InstrumentationUtils.IMG_LIST_RQ);
     }
 
     private void processImageJSON(JSONObject object){
@@ -238,6 +260,7 @@ public class BluetoothClient {
     }
 
     private void retrievePhotosFromDevices(){
+        iu.registerLatency(InstrumentationUtils.P2P_TRANSFER);
         for (UserDevice u : deviceImageIndex.keySet()){
             if (!u.getMacBT().equals(mMacBT) && !u.getMacWD().equals(mMacWD)){
                 List<ImageModel> imageList = checkDownloaded(deviceImageIndex.get(u));
@@ -248,12 +271,12 @@ public class BluetoothClient {
                     connect.start();
                     try {
                         connect.join();
+                        System.out.println("I FINISHED");
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
             }
-
         }
     }
 
@@ -338,14 +361,56 @@ public class BluetoothClient {
                 otherWD = input.readBoolean();
                 output.writeBoolean(hasWD);
                 if (hasWD && otherWD){
-                    new Thread() {
+                    Thread wifiTransfer = new Thread() {
                         public void run() {
-                            WifiDirectTransfer wd = new WifiDirectTransfer(context, true, wifiMac, imageNames, progressDialog, mAdapter);
+                            iu.setTransferProtocol(InstrumentationUtils.WD);
+                            WifiDirectTransfer wd = new WifiDirectTransfer(context, true, wifiMac, imageNames, progressDialog, mAdapter, iu);
                         }
-                    }.run();
+                    };
+
+                    wifiTransfer.start();
+                    try {
+                        wifiTransfer.join();
+                        System.out.println("WD finished");
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
 
                 } else {
-                    //FALLBACK
+                    iu.setTransferProtocol(InstrumentationUtils.BT);
+                    output.writeInt(imageNames.size());
+                    Log.d("BT SEND FILE", "POTATO MIX FIRST STAGE");
+                    for (ImageModel name : imageNames){
+                        output.writeUTF(name.getPhotoName());
+                    }
+
+                    int numberFiles = input.readInt();
+                    Log.d("BT SEND FILE", "Number of files to send: " + numberFiles);
+                    for (int i = 0; i < numberFiles; i++){
+                        String name = input.readUTF();
+                        String [] nameSplit = name.split("\\.");
+                        Long fileSize = input.readLong();
+
+                        File file = new File(Environment.getExternalStorageDirectory().getPath() + File.separator + "Hyrax" + File.separator + nameSplit[0] + File.separator + name);
+                        if (!file.getParentFile().exists()) file.getParentFile().mkdirs();
+
+                        FileOutputStream fos = new FileOutputStream(file);
+                        OutputStream bos = new BufferedOutputStream(fos);
+
+                        copyStream(input, bos,fileSize);
+                        bos.close();
+
+                        if (i == numberFiles-1){
+                            sendDeviceToIndex(context, getImageModelByName(nameSplit[0],imageNames).getId(), mMacBT, mMacWD, addDeviceURL,iu);
+                        } else {
+                            sendDeviceToIndex(context, getImageModelByName(nameSplit[0],imageNames).getId(), mMacBT, mMacWD, addDeviceURL,null);
+                        }
+                    }
+
+                    output.writeBoolean(true);
+
+                    final String sentMsg = "File received";
+                    Log.d(TAG, sentMsg);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -359,6 +424,70 @@ public class BluetoothClient {
 
 
         }
+    }
+
+    private static void sendDeviceToIndex(final Context context, final int id, final String macBT, final String macWD, String url, final InstrumentationUtils iu){
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, url,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        if (iu != null){
+                            iu.calculateLatency(InstrumentationUtils.ADD_INDEX_RQ);
+                            iu.endTest();
+                        }
+                        //Toast.makeText(context, "Device added to index" ,Toast.LENGTH_SHORT).show();
+                    }
+                }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                System.out.println(error.toString());
+            }
+        }) {
+            @Override
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<String, String>();
+                params.put("imageid", String.valueOf(id));
+                params.put("macwd", macWD);
+                params.put("macbt", macBT);
+                return params;
+            }
+        };
+        Volley.newRequestQueue(context).add(stringRequest);
+        if (iu != null){
+            iu.registerLatency(InstrumentationUtils.ADD_INDEX_RQ);
+        }
+
+    }
+
+    private static void copyStream(InputStream input, OutputStream output, Long fileSize)
+            throws IOException {
+        int bytesRead = 0;
+        try {
+            int bufferSize = 1024;
+            byte[] buffer = new byte[bufferSize];
+
+            // we need to know how may bytes were read to write them to the byteBuffer
+            Long len = fileSize;
+
+            while (len > 0) {
+                int bytes = input.read(buffer, 0, (int)Math.min(buffer.length,len));
+                bytesRead += bytes;
+                len -= bytes;
+                output.write(buffer, 0, bytes);
+            }
+            Log.d("BT DEBUG", bytesRead + "");
+        } finally {
+            Log.d("BT DEBUG", bytesRead + "");
+            output.flush();
+            //output.close();
+        }
+    }
+
+    private static ImageModel getImageModelByName(String name, List<ImageModel> images){
+        for (ImageModel i : images){
+            if (i.getPhotoName().equals(name)) return i;
+        }
+        return null;
     }
 
 

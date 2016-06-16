@@ -267,6 +267,11 @@ public class GalleryActivity extends AppCompatActivity {
 
     private List<File> getHyraxPhotos(){
         File file = new File(Environment.getExternalStorageDirectory().getPath() + File.separator + "Hyrax");
+        boolean mkdir = false;
+        if (!file.exists()) {
+            mkdir = file.mkdir();
+
+        }
         List<File> res = new ArrayList<>();
         for (File f : file.listFiles()){
             res.add(new File(f.getAbsolutePath() + File.separator + f.getName() + ".jpg"));
@@ -277,8 +282,9 @@ public class GalleryActivity extends AppCompatActivity {
     private class GetImagesTask extends AsyncTask<Void, Void, Void> {
 
         protected Void doInBackground(Void... s) {
-
-            new BluetoothClient(context,progressDialog, mAdapter).startConnection(searchURL, user);
+            InstrumentationUtils iu = new InstrumentationUtils(context);
+            iu.startTest();
+            new BluetoothClient(context,progressDialog, mAdapter, iu).startConnection(searchURL, user);
             return null;
         }
 

@@ -7,13 +7,21 @@ import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
 
+import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class BluetoothServerService extends Service {
@@ -120,33 +128,105 @@ public class BluetoothServerService extends Service {
 
             public void run(){
                 boolean otherWD;
+                boolean finished = false;
+                Thread wifiTransfer = null;
                 try {
                     output.writeBoolean(hasWD);
                     otherWD = input.readBoolean();
                     if (hasWD && otherWD){
-                        new Thread() {
+                       wifiTransfer = new Thread() {
                             public void run() {
-                                WifiDirectTransfer wd = new WifiDirectTransfer(context, false, null, null,null, null);
+                                WifiDirectTransfer wd = new WifiDirectTransfer(context, false, null, null,null, null, null );
                             }
-                        }.run();
+                        };
+
+                        wifiTransfer.start();
+                        try {
+                            wifiTransfer.join();
+                            System.out.println("WD finished");
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+
 
                     } else {
-                        //FALLBACK
+                        BufferedInputStream bis;
+                        Log.d("BT DEBUG", "TRYING TO RECEIVE NUMBER");
+                        int numberImages = input.readInt();
+                        Log.d("BT DEBUG", "RECEIVED NUMBER OF IMAGES " + numberImages);
+                        List<String> imageNames = new ArrayList<>();
+                        for (int i = 0; i < numberImages; i++) {
+                            String name = input.readUTF();
+                            imageNames.add(name);
+                            System.out.println(name);
+                        }
+
+                        File file = new File(Environment.getExternalStorageDirectory().getPath() + File.separator + "Hyrax");
+                        List<File> toSend = new ArrayList<>();
+
+                        for (String name : imageNames) {
+                            for (File f : file.listFiles()) {
+                                if (f.getName().equals(name)) {
+                                    toSend.add(new File(f.getAbsolutePath() + file.separator + f.getName() + ".jpg"));
+                                }
+                            }
+                        }
+
+                        output.writeInt(toSend.size());
+
+                        for (File f : toSend) {
+                            bis = new BufferedInputStream(new FileInputStream(f));
+
+                            output.writeUTF(f.getName());
+                            output.writeLong(f.length());
+                            copyStream(bis, output, f.length());
+                            bis.close();
+                            final String sentMsg = "File sent to " + mSocket.getRemoteDevice().getName();
+                            Log.d(TAG, sentMsg);
+                        }
+
+                        finished = input.readBoolean();
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally{
-                    if (mSocket != null){
-                        try {
-                            mSocket.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
+                    if (finished){
+                        if (mSocket != null){
+                            try {
+                                mSocket.close();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
                         }
                     }
                 }
             }
 
+        }
 
+    }
+
+    private static void copyStream(InputStream input, OutputStream output, Long fileSize)
+            throws IOException {
+        int bytesRead = 0;
+        try {
+            int bufferSize = 1024;
+            byte[] buffer = new byte[bufferSize];
+
+            // we need to know how may bytes were read to write them to the byteBuffer
+            Long len = fileSize;
+
+            while (len > 0) {
+                int bytes = input.read(buffer, 0, (int)Math.min(buffer.length,len));
+                bytesRead += bytes;
+                len -= bytes;
+                output.write(buffer, 0, bytes);
+            }
+            Log.d("BT DEBUG", bytesRead + "");
+        } finally {
+            Log.d("BT DEBUG", bytesRead + "");
+            output.flush();
+            //output.close();
         }
     }
 }

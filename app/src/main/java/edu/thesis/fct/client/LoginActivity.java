@@ -3,6 +3,7 @@ package edu.thesis.fct.client;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.ContentObserver;
@@ -34,6 +35,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -60,6 +62,7 @@ public class LoginActivity extends AppCompatActivity {
     String mServiceName = "hyrax";
     String loginURL;
     String user;
+    boolean isRemote = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,14 +71,45 @@ public class LoginActivity extends AppCompatActivity {
         context = this;
         Button login = (Button) this.findViewById(R.id.loginButton);
         Button register = (Button) this.findViewById(R.id.registerButton);
+        Button newSession = (Button) this.findViewById(R.id.newsession);
         username = (EditText) this.findViewById(R.id.username);
 
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                         | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
 
+        new AlertDialog.Builder(context)
+                .setTitle("Local or Remote Server")
+                .setMessage("If the server is remote, you have to insert the IP and Port")
+                .setPositiveButton("Local", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        mNsdManager = (NsdManager) getSystemService(Context.NSD_SERVICE);
+                        initializeResolveListener();
+                        initializeDiscoveryListener();
+                        mNsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, mDiscoveryListener);
+                    }
+                })
+                .setNegativeButton("Remote", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        isRemote = true;
+                        LoginActivity.this.findViewById(R.id.remoteip).setVisibility(View.VISIBLE);
+                        LoginActivity.this.findViewById(R.id.remoteport).setVisibility(View.VISIBLE);
+                    }
+                })
+                .show();
+
+        newSession.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                int session = InstrumentationUtils.newTestSession(context);
+                Toast.makeText(context, "Started log in file " + session, Toast.LENGTH_LONG ).show();
+
+            }
+        });
+
         login.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                if (isRemote) setLoginURL();
                 String name = username.getText().toString();
                 if (name.equals("")){
                     Toast.makeText(context, "Please insert a username", Toast.LENGTH_LONG ).show();
@@ -87,6 +121,7 @@ public class LoginActivity extends AppCompatActivity {
 
         register.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                if (isRemote) setLoginURL();
                 String name = username.getText().toString();
                 if (name.equals("")){
                     Toast.makeText(context, "Please insert a username", Toast.LENGTH_LONG ).show();
@@ -102,11 +137,22 @@ public class LoginActivity extends AppCompatActivity {
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false,
                         photoObserver);
         Log.d("INSTANT", "registered content observer");
+    }
 
-        mNsdManager = (NsdManager) getSystemService(Context.NSD_SERVICE);
-        initializeResolveListener();
-        initializeDiscoveryListener();
-        mNsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, mDiscoveryListener);
+    private void setLoginURL(){
+        String ip = ((EditText) this.findViewById(R.id.remoteip)).getText().toString();
+        String port = ((EditText) this.findViewById(R.id.remoteport)).getText().toString();
+
+        try {
+            InetAddress address = InetAddress.getByName(ip);
+            NetworkInfoHolder.getInstance().setData(address);
+            NetworkInfoHolder.getInstance().setPort(Integer.parseInt(port));
+            loginURL = "http://" + address.getHostAddress()  + ":" + port  + "/hyrax-server/rest/checkuser/";
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+
+
 
     }
 

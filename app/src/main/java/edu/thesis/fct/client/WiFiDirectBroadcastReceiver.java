@@ -17,6 +17,7 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
     private WifiP2pManager.Channel mChannel;
     WifiP2pManager.PeerListListener myPeerListListener;
     WifiP2pManager.ConnectionInfoListener mConnectionListener;
+    static final String TAG = "WD DIRECT!";
 
 
     public WiFiDirectBroadcastReceiver(WifiP2pManager manager, WifiP2pManager.Channel channel,WifiP2pManager.PeerListListener peerListListener, WifiP2pManager.ConnectionInfoListener connectionInfoListener) {
@@ -61,22 +62,22 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
             }
             NetworkInfo networkInfo = intent
                     .getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
-            Log.d(WiFiDirectActivity.TAG, networkInfo.getState().toString());
+            Log.d(TAG, networkInfo.getState().toString());
             if (networkInfo.isConnected()) {
                 // we are connected with the other device, request connection
                 // info to find group owner IP
-                Log.d(WiFiDirectActivity.TAG,
+                Log.d(TAG,
                         "Connected to p2p network. Requesting network details");
                 mManager.requestConnectionInfo(mChannel, mConnectionListener);
             } else {
-                Log.d(WiFiDirectActivity.TAG, networkInfo.getState().toString());
+                Log.d(TAG, networkInfo.getState().toString());
             }
 
         } else if (WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION.equals(action)) {
             // Respond to this device's wifi state changing
             WifiP2pDevice device = intent
                     .getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE);
-            Log.d(WiFiDirectActivity.TAG, "Device status -" + device.status);
+            Log.d(TAG, "Device status -" + device.status);
         }
     }
 }

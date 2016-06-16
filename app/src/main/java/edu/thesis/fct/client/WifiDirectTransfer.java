@@ -25,6 +25,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.android.volley.Request;
+import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
@@ -48,6 +49,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Created by abs on 21-05-2016.
@@ -72,17 +74,20 @@ public class WifiDirectTransfer {
     GalleryAdapter mAdapter;
     String mMacBT;
     String mMacWD;
+    InstrumentationUtils iu;
+    public static boolean done = false;
+    static RequestQueue queue;
 
 
     private boolean checkAddress(String address1, String address2){
-        return address1.substring(2).equals(address2.substring(2));
+        return address1.substring(2,12).equals(address2.substring(2,12));
     }
 
 
 
-    public WifiDirectTransfer(final Context context, final boolean isRequesting, final String macAddress, final List<ImageModel> images, final ProgressDialog progressDialog, final GalleryAdapter mAdapter) {
+    public WifiDirectTransfer(final Context context, final boolean isRequesting, final String macAddress, final List<ImageModel> images, final ProgressDialog progressDialog, final GalleryAdapter mAdapter, InstrumentationUtils iu) {
         this.context = context;
-
+        this.iu = iu;
         NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
         Log.d("NIH", nih.getHost() + "");
         if (nih.getHost() != null){
@@ -99,6 +104,13 @@ public class WifiDirectTransfer {
         this.mMacWD = pref.getString("macwd", null);
 
         new WDStartProcess().execute();
+        while(!done){
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 
     }
 
@@ -187,7 +199,8 @@ public class WifiDirectTransfer {
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
-                            new FileClientAsyncTask(context, info.groupOwnerAddress, 9991, images, progressDialog, mAdapter, new UserDevice(mMacBT,mMacWD), addDeviceURL, mReceiver, mManager, mChannel).execute();
+                            new FileClientAsyncTask(context, info.groupOwnerAddress, 9991, images, progressDialog, mAdapter, new UserDevice(mMacBT,mMacWD), addDeviceURL, mReceiver, mManager, mChannel,iu)
+                                    .execute();
                         }
                     }
                     connected = true;
@@ -260,7 +273,6 @@ public class WifiDirectTransfer {
                     }
                 });
             }
-
             return null;
         }
 
@@ -276,6 +288,7 @@ public class WifiDirectTransfer {
         Socket socket;
         List<ImageModel> imageNames;
         ProgressDialog progressDialog;
+        InstrumentationUtils iu;
         GalleryAdapter mAdapter;
         Context context;
         UserDevice myDevice;
@@ -284,7 +297,8 @@ public class WifiDirectTransfer {
         WifiP2pManager mManager;
         WifiP2pManager.Channel mChannel;
 
-        public FileClientAsyncTask(Context context, InetAddress address, int port, List<ImageModel> imagesNames, ProgressDialog progressDialog, GalleryAdapter mAdapter, UserDevice myDevice, String addDeviceURL, BroadcastReceiver mReceiver,WifiP2pManager mManager, WifiP2pManager.Channel mChannel) {
+        public FileClientAsyncTask(Context context, InetAddress address, int port, List<ImageModel> imagesNames, ProgressDialog progressDialog, GalleryAdapter mAdapter, UserDevice myDevice, String addDeviceURL, BroadcastReceiver mReceiver,WifiP2pManager mManager, WifiP2pManager.Channel mChannel, InstrumentationUtils iu) {
+            this.iu = iu;
             this.address = address;
             this.mAdapter = mAdapter;
             this.port = port;
@@ -302,6 +316,7 @@ public class WifiDirectTransfer {
         protected void onPostExecute(Void result){
 
             mAdapter.setData(new ArrayList<Object>(getHyraxPhotos()));
+            done = true;
             progressDialog.hide();
         }
 
@@ -311,10 +326,15 @@ public class WifiDirectTransfer {
             try {
 
                 socket = new Socket(address, port);
-                socket.setSoTimeout(7000);
+                socket.setSoTimeout(70000);
 
                 DataInputStream input = new DataInputStream(socket.getInputStream());
                 DataOutputStream output = new DataOutputStream(socket.getOutputStream());
+
+                iu.registerBytes(InstrumentationUtils.RX);
+                iu.registerBytes(InstrumentationUtils.TX);
+                iu.registerPackets(InstrumentationUtils.RX);
+                iu.registerPackets(InstrumentationUtils.TX);
 
                 output.writeInt(imageNames.size());
                 Log.d("BT SEND FILE", "POTATO MIX FIRST STAGE");
@@ -323,8 +343,16 @@ public class WifiDirectTransfer {
                 }
 
                 int numberFiles = input.readInt();
+                iu.calculateBytes(InstrumentationUtils.BYTES_C2C, InstrumentationUtils.RX);
+                iu.calculateBytes(InstrumentationUtils.BYTES_C2C, InstrumentationUtils.TX);
+                iu.calculatePackets(InstrumentationUtils.PACKETS_C2C, InstrumentationUtils.RX);
+                iu.calculatePackets(InstrumentationUtils.PACKETS_C2C, InstrumentationUtils.TX);
                 Log.d("BT SEND FILE", "Number of files to send: " + numberFiles);
                 for (int i = 0; i < numberFiles; i++){
+                    iu.registerBytes(InstrumentationUtils.RX);
+                    iu.registerBytes(InstrumentationUtils.TX);
+                    iu.registerPackets(InstrumentationUtils.RX);
+                    iu.registerPackets(InstrumentationUtils.TX);
                     String name = input.readUTF();
                     String [] nameSplit = name.split("\\.");
                     Long fileSize = input.readLong();
@@ -337,11 +365,22 @@ public class WifiDirectTransfer {
 
                     copyStream(input, bos,fileSize);
                     bos.close();
-
-                    sendDeviceToIndex(context, getImageModelByName(nameSplit[0],imageNames).getId(), myDevice.getMacBT(), myDevice.getMacWD(), addDeviceURL);
+                    iu.calculateBytes(InstrumentationUtils.BYTES_C2C, InstrumentationUtils.RX);
+                    iu.calculateBytes(InstrumentationUtils.BYTES_C2C, InstrumentationUtils.TX);
+                    iu.calculatePackets(InstrumentationUtils.PACKETS_C2C, InstrumentationUtils.RX);
+                    iu.calculatePackets(InstrumentationUtils.PACKETS_C2C, InstrumentationUtils.TX);
+                    if (i == numberFiles-1){
+                        sendDeviceToIndex(context, getImageModelByName(nameSplit[0],imageNames).getId(), myDevice.getMacBT(), myDevice.getMacWD(), addDeviceURL,iu);
+                    } else {
+                        sendDeviceToIndex(context, getImageModelByName(nameSplit[0],imageNames).getId(), myDevice.getMacBT(), myDevice.getMacWD(), addDeviceURL,null);
+                    }
                 }
 
+                iu.registerBytes(InstrumentationUtils.TX);
+                iu.registerPackets(InstrumentationUtils.TX);
                 output.writeBoolean(true);
+                iu.calculateBytes(InstrumentationUtils.BYTES_C2C, InstrumentationUtils.TX);
+                iu.calculatePackets(InstrumentationUtils.PACKETS_C2C, InstrumentationUtils.TX);
 
                 final String sentMsg = "File received";
                 Log.d(TAG, sentMsg);
@@ -363,9 +402,14 @@ public class WifiDirectTransfer {
                     }
                 }
                 context.unregisterReceiver(receiver);
+                iu.calculateLatency(InstrumentationUtils.P2P_TRANSFER);
             }
             return null;
         }
+
+
+
+
     }
 
     private static ImageModel getImageModelByName(String name, List<ImageModel> images){
@@ -375,12 +419,20 @@ public class WifiDirectTransfer {
         return null;
     }
 
-    private static void sendDeviceToIndex(final Context context, final int id, final String macBT, final String macWD, String url){
+    private static void sendDeviceToIndex(final Context context, final int id, final String macBT, final String macWD, String url, final InstrumentationUtils iu){
         StringRequest stringRequest = new StringRequest(Request.Method.POST, url,
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-                        Toast.makeText(context, "Device added to index" ,Toast.LENGTH_SHORT).show();
+                        if (iu != null){
+                            iu.calculateLatency(InstrumentationUtils.ADD_INDEX_RQ);
+                            iu.calculateBytes(InstrumentationUtils.BYTES_C2S, InstrumentationUtils.RX);
+                            iu.calculateBytes(InstrumentationUtils.BYTES_C2S, InstrumentationUtils.TX);
+                            iu.calculatePackets(InstrumentationUtils.PACKETS_C2S, InstrumentationUtils.RX);
+                            iu.calculatePackets(InstrumentationUtils.PACKETS_C2S, InstrumentationUtils.TX);
+                            iu.endTest();
+                        }
+                        //Toast.makeText(context, "Device added to index" ,Toast.LENGTH_SHORT).show();
                     }
                 }, new Response.ErrorListener() {
             @Override
@@ -397,7 +449,19 @@ public class WifiDirectTransfer {
                 return params;
             }
         };
-        Volley.newRequestQueue(context).add(stringRequest);
+        if (queue == null){
+            queue = Volley.newRequestQueue(context);
+        }
+        queue.add(stringRequest);
+
+        if (iu != null){
+            iu.registerLatency(InstrumentationUtils.ADD_INDEX_RQ);
+            iu.registerBytes(InstrumentationUtils.RX);
+            iu.registerBytes(InstrumentationUtils.TX);
+            iu.registerPackets(InstrumentationUtils.RX);
+            iu.registerPackets(InstrumentationUtils.TX);
+        }
+
     }
 
     public static class FileServerAsyncTask extends AsyncTask<Object, String, String> {
@@ -497,6 +561,7 @@ public class WifiDirectTransfer {
         protected void onPostExecute (String result){
             if (result != null) {
                 Log.d(TAG, "GOTTASHIT!");
+                done = true;
                 context.unregisterReceiver(receiver);
             }
         }
