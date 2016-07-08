@@ -77,7 +77,8 @@
                 android:layout_height="wrap_content"
                 android:text="Register"
                 android:id="@+id/registerButton"
-                android:layout_below="@+id/button" />
+                android:layout_below="@+id/button"
+                android:layout_marginBottom="16dp"/>
 
             <Button
                 android:layout_width="208dp"

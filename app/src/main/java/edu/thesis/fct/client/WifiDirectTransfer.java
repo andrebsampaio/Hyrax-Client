@@ -343,16 +343,8 @@ public class WifiDirectTransfer {
                 }
 
                 int numberFiles = input.readInt();
-                iu.calculateBytes(InstrumentationUtils.BYTES_C2C, InstrumentationUtils.RX);
-                iu.calculateBytes(InstrumentationUtils.BYTES_C2C, InstrumentationUtils.TX);
-                iu.calculatePackets(InstrumentationUtils.PACKETS_C2C, InstrumentationUtils.RX);
-                iu.calculatePackets(InstrumentationUtils.PACKETS_C2C, InstrumentationUtils.TX);
                 Log.d("BT SEND FILE", "Number of files to send: " + numberFiles);
                 for (int i = 0; i < numberFiles; i++){
-                    iu.registerBytes(InstrumentationUtils.RX);
-                    iu.registerBytes(InstrumentationUtils.TX);
-                    iu.registerPackets(InstrumentationUtils.RX);
-                    iu.registerPackets(InstrumentationUtils.TX);
                     String name = input.readUTF();
                     String [] nameSplit = name.split("\\.");
                     Long fileSize = input.readLong();
@@ -365,10 +357,6 @@ public class WifiDirectTransfer {
 
                     copyStream(input, bos,fileSize);
                     bos.close();
-                    iu.calculateBytes(InstrumentationUtils.BYTES_C2C, InstrumentationUtils.RX);
-                    iu.calculateBytes(InstrumentationUtils.BYTES_C2C, InstrumentationUtils.TX);
-                    iu.calculatePackets(InstrumentationUtils.PACKETS_C2C, InstrumentationUtils.RX);
-                    iu.calculatePackets(InstrumentationUtils.PACKETS_C2C, InstrumentationUtils.TX);
                     if (i == numberFiles-1){
                         sendDeviceToIndex(context, getImageModelByName(nameSplit[0],imageNames).getId(), myDevice.getMacBT(), myDevice.getMacWD(), addDeviceURL,iu);
                     } else {
@@ -376,10 +364,11 @@ public class WifiDirectTransfer {
                     }
                 }
 
-                iu.registerBytes(InstrumentationUtils.TX);
-                iu.registerPackets(InstrumentationUtils.TX);
+
                 output.writeBoolean(true);
+                iu.calculateBytes(InstrumentationUtils.BYTES_C2C, InstrumentationUtils.RX);
                 iu.calculateBytes(InstrumentationUtils.BYTES_C2C, InstrumentationUtils.TX);
+                iu.calculatePackets(InstrumentationUtils.PACKETS_C2C, InstrumentationUtils.RX);
                 iu.calculatePackets(InstrumentationUtils.PACKETS_C2C, InstrumentationUtils.TX);
 
                 final String sentMsg = "File received";
@@ -407,9 +396,6 @@ public class WifiDirectTransfer {
             return null;
         }
 
-
-
-
     }
 
     private static ImageModel getImageModelByName(String name, List<ImageModel> images){
@@ -426,8 +412,8 @@ public class WifiDirectTransfer {
                     public void onResponse(String response) {
                         if (iu != null){
                             iu.calculateLatency(InstrumentationUtils.ADD_INDEX_RQ);
-                            iu.calculateBytes(InstrumentationUtils.BYTES_C2S, InstrumentationUtils.RX);
-                            iu.calculateBytes(InstrumentationUtils.BYTES_C2S, InstrumentationUtils.TX);
+                            //iu.calculateBytes(InstrumentationUtils.BYTES_C2S, InstrumentationUtils.RX);
+                            //inforumiu.calculateBytes(InstrumentationUtils.BYTES_C2S, InstrumentationUtils.TX);
                             iu.calculatePackets(InstrumentationUtils.PACKETS_C2S, InstrumentationUtils.RX);
                             iu.calculatePackets(InstrumentationUtils.PACKETS_C2S, InstrumentationUtils.TX);
                             iu.endTest();
@@ -456,8 +442,8 @@ public class WifiDirectTransfer {
 
         if (iu != null){
             iu.registerLatency(InstrumentationUtils.ADD_INDEX_RQ);
-            iu.registerBytes(InstrumentationUtils.RX);
-            iu.registerBytes(InstrumentationUtils.TX);
+            //iu.registerBytes(InstrumentationUtils.RX);
+            //iu.registerBytes(InstrumentationUtils.TX);
             iu.registerPackets(InstrumentationUtils.RX);
             iu.registerPackets(InstrumentationUtils.TX);
         }
