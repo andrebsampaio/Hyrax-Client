@@ -244,7 +244,7 @@ public class CameraFragment extends Fragment
 
         @Override
         public void onImageAvailable(ImageReader reader) {
-            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile,getActivity(), autoUploadStatus,cameraInfo,uploadURL, location, String.valueOf(currentTime) ));
+            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile,getActivity(), cameraInfo ));
         }
 
     };
@@ -968,7 +968,6 @@ public class CameraFragment extends Fragment
      */
     private static class ImageSaver implements Runnable {
 
-        private final boolean autoUploadStatus;
         /**
          * The JPEG image
          */
@@ -982,41 +981,22 @@ public class CameraFragment extends Fragment
 
         private final CameraCharacteristics cameraInfo;
 
-        private final String uploadURL;
-
-        private final String location;
-
-        private final String time;
-
-        public ImageSaver(Image image, File file, Activity activity, boolean autoUploadStatus, CameraCharacteristics cameraInfo,
-        String url, String location, String time) {
+        public ImageSaver(Image image, File file, Activity activity, CameraCharacteristics cameraInfo) {
             mImage = image;
             mFile = file;
             this.activity = activity;
-            this.autoUploadStatus = autoUploadStatus;
             this.cameraInfo = cameraInfo;
-            this.uploadURL = url;
-            this.location = location;
-            this.time = time;
         }
 
-        class uploadAsync implements Runnable {
+        class RecogAsync implements Runnable {
             File name;
-            Activity act;
-            String url;
-            String location;
-            String time;
 
-            uploadAsync(Activity act, String url, String location, String time, File name){
+            RecogAsync(File name){
                 this.name = name;
-                this.act = act;
-                this.url = url;
-                this.location = location;
-                this.time = time;
 
             }
             public void run(){
-                new UploadImageTask().execute(act,url, location, time, name);
+                new FaceRecognitionAsync(name).execute();
             }
         }
 
@@ -1042,10 +1022,8 @@ public class CameraFragment extends Fragment
                 if (null != output) {
                     try {
                         output.close();
-                        if(autoUploadStatus){
-                            Log.d("UPLOAD", "PROCESSING IMAGE AND UPLOAD");
-                            activity.runOnUiThread(new uploadAsync(activity, uploadURL, location, time, mFile));
-                        }
+                        Log.d("RECOG", "PROCESSING IMAGE AND RECOGNIZING");
+                        activity.runOnUiThread(new RecogAsync(mFile));
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
