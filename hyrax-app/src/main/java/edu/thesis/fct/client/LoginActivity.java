@@ -233,6 +233,8 @@ public class LoginActivity extends AppCompatActivity {
             NetworkInfoHolder.getInstance().setData(address);
             NetworkInfoHolder.getInstance().setPort(Integer.parseInt(port));
             loginURL = "http://" + address.getHostAddress()  + ":" + port  + "/hyrax-server/rest/checkuser/";
+            SharedPreferences pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
+            pref.edit().putString("server_url", "http://" + address.getHostAddress()  + ":" + port  + "/hyrax-server/rest/").commit();
         } catch (UnknownHostException e) {
             e.printStackTrace();
         }
@@ -470,6 +472,8 @@ public class LoginActivity extends AppCompatActivity {
                 NetworkInfoHolder.getInstance().setData(host);
                 NetworkInfoHolder.getInstance().setPort(port);
                 loginURL = "http://" + host.getHostAddress()  + ":" + port  + "/hyrax-server/rest/checkuser/";
+                SharedPreferences pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
+                pref.edit().putString("server_url", "http://" + host.getHostAddress()  + ":" + port  + "/hyrax-server/rest/").commit();
                 Log.d(TAG,  NetworkInfoHolder.getInstance().getHost().getHostAddress());
                 CharSequence detected =  "Server detected";
                 Toast toast = Toast.makeText(context,detected,Toast.LENGTH_SHORT);

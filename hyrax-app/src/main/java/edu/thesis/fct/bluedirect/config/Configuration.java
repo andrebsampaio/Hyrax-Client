@@ -54,6 +54,10 @@ public class Configuration {
 		}
 	}
 
+	public static String getServerURL(Context context){
+		return context.getSharedPreferences("MyPref", context.MODE_PRIVATE).getString("server_url",null);
+	}
+
 	public static boolean setBluetooth(boolean enable) {
 		BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 		boolean isEnabled = bluetoothAdapter.isEnabled();

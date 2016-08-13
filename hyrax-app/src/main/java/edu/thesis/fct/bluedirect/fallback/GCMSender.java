@@ -14,6 +14,7 @@ import java.net.URL;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import edu.thesis.fct.bluedirect.router.Packet;
+import edu.thesis.fct.client.ImageModel;
 
 /**
  * Created by abs on 11-08-2016.
@@ -22,7 +23,7 @@ public class GCMSender {
 
     public static final String API_KEY = "AIzaSyBGOuE4LF4mUInjqq3EwjKlTfLJCny0Tno";
 
-    public static void sendQuery(Packet p){
+    public static void sendPacket(Packet p, ImageModel i){
         try {
             // Prepare JSON containing the GCM message content. What to send and where to send.
             JSONObject jGcmData = new JSONObject();
@@ -30,6 +31,9 @@ public class GCMSender {
             jData.put("my_id", p.getSenderMac());
             jData.put("type", p.getType().toString());
             jData.put("message", new String(p.getData()));
+            if (p.getType().equals(Packet.TYPE.FB_DATA)){
+                jData.put("image_info", i.toString());
+            }
             // Where to send GCM message.
             if (!p.getMac().equals("00:00:00:00:00:00")) {
                 jGcmData.put("to", p.getMac());

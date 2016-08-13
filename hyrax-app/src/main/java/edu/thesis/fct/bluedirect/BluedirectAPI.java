@@ -27,7 +27,7 @@ public class BluedirectAPI {
                         WiFiDirectBroadcastReceiver.MAC, c.getBtmac(), Configuration.getBluetoothSelfMac(activity)));
             }
         } else {
-            GCMSender.sendQuery(new Packet(Packet.TYPE.FB_QUERY,msg.getBytes(),null, Configuration.getFallbackId((Activity)activity),null,null));
+            GCMSender.sendPacket(new Packet(Packet.TYPE.FB_QUERY,msg.getBytes(),null, Configuration.getFallbackId((Activity)activity),null,null),null);
         }
 
     }
@@ -46,7 +46,7 @@ public class BluedirectAPI {
         if (!BluedirectActivity.fallback){
             Sender.queuePacket(new Packet(type,data,mac,WiFiDirectBroadcastReceiver.MAC,btmac,Configuration.getBluetoothSelfMac(activity)));
         } else {
-            GCMSender.sendQuery(new Packet(Packet.TYPE.FB_QUERY,data,mac, Configuration.getFallbackId((Activity)activity),null,null));
+            GCMSender.sendPacket(new Packet(Packet.TYPE.FB_QUERY,data,mac, Configuration.getFallbackId((Activity)activity),null,null),null);
         }
     }
 

@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
@@ -27,6 +28,7 @@ import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.NetworkResponse;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
+import com.android.volley.toolbox.ImageRequest;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 
@@ -45,6 +47,7 @@ import edu.thesis.fct.bluedirect.bt.BTService;
 import edu.thesis.fct.bluedirect.bt.BluetoothBroadcastReceiver;
 import edu.thesis.fct.bluedirect.config.Configuration;
 import edu.thesis.fct.bluedirect.fallback.FileSender;
+import edu.thesis.fct.bluedirect.fallback.GCMSender;
 import edu.thesis.fct.bluedirect.fallback.QuickstartPreferences;
 import edu.thesis.fct.bluedirect.fallback.RegistrationIntentService;
 import edu.thesis.fct.bluedirect.router.MeshNetworkManager;
@@ -147,7 +150,9 @@ public class BluedirectActivity extends Activity implements ChannelListener, Dev
 					totalToReceive += count;
 					updateProgressDialog(totalToReceive);
 				} else {
-
+					String [] info = deserializePacket(p);
+					ImageModel i = ImageModel.fromString(info[0]);
+					downloadImage(info[1], i);
 				}
 			}
 		});
@@ -214,6 +219,61 @@ public class BluedirectActivity extends Activity implements ChannelListener, Dev
 
 	}
 
+	private String [] deserializePacket(Packet p){
+		ByteArrayInputStream bai = new ByteArrayInputStream(p.getData());
+		DataInputStream dis = new DataInputStream(bai);
+
+		try {
+			int infoSize = dis.readInt();
+			byte [] tmp = new byte[infoSize];
+			dis.readFully(tmp);
+			String info = new String(tmp);
+
+			int urlSize = dis.readInt();
+			tmp = new byte[urlSize];
+			dis.readFully(tmp);
+			String url = new String(tmp);
+
+			return new String []{info,url};
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	private void downloadImage(String url, final ImageModel i){
+		ImageRequest ir = new ImageRequest(url, new Response.Listener<Bitmap>() {
+
+			@Override
+			public void onResponse(Bitmap response) {
+				File location = new File(Environment.getExternalStorageDirectory().getAbsolutePath()
+						+ File.separator + "Hyrax" + File.separator + i.getPhotoName() + File.separator + i.getPhotoName() + ".jpg");
+				storeBitmap(response, location );
+				ImageModel.writeToFile(location,i);
+			}
+		}, 0, 0, null, null);
+	}
+
+	private void storeBitmap(Bitmap bmp, File filename){
+		FileOutputStream out = null;
+		try {
+			filename.getParentFile().mkdirs();
+			out = new FileOutputStream(filename);
+			bmp.compress(Bitmap.CompressFormat.JPEG, 100, out); // bmp is your Bitmap instance
+			// PNG is a lossless format, the compression factor (100) is ignored
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if (out != null) {
+					out.close();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
 	private void registerReceiver(Context context){
 		if(!isReceiverRegistered) {
 			LocalBroadcastManager.getInstance(context).registerReceiver(mRegistrationBroadcastReceiver,
@@ -270,13 +330,20 @@ public class BluedirectActivity extends Activity implements ChannelListener, Dev
 		}
 	}
 
-	private static void sendFile(ImageModel i, String rcvMac, String btRcvMac, Context context){
+	private static void sendFile(final ImageModel i, final String rcvMac, String btRcvMac, final Context context){
 		File file = new File(Environment.getExternalStorageDirectory() + File.separator + "Hyrax" + File.separator + i.getPhotoName() + File.separator + i.getPhotoName() + ".jpg");
 		if (!BluedirectActivity.fallback)
 			Sender.queuePacket(new Packet(Packet.TYPE.FILE, ImageToBytes(i, file), rcvMac, WiFiDirectBroadcastReceiver.MAC, btRcvMac, Configuration.getBluetoothSelfMac(context)));
 		else {
 			try {
-				FileSender.sendFile(file,"URL", context);
+				FileSender.sendFile(file,Configuration.getServerURL(context) + "upload", context);
+				FileSender.setOnFileReceivedListener(new FileSender.onFileReceivedListener() {
+					@Override
+					public void onFileReceived(NetworkResponse response) {
+						String id = response.data.toString();
+						GCMSender.sendPacket(new Packet(Packet.TYPE.FB_DATA,(Configuration.getServerURL(context) + "images/" + id).getBytes(), rcvMac, Configuration.getFallbackId((Activity)context),null,null),i);
+					}
+				});
 			} catch (IOException e) {
 				e.printStackTrace();
 			}

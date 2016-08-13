@@ -14,6 +14,8 @@ import android.util.Log;
 
 import com.google.android.gms.gcm.GcmListenerService;
 
+import java.nio.ByteBuffer;
+
 import edu.thesis.fct.bluedirect.router.Packet;
 import edu.thesis.fct.bluedirect.router.Receiver;
 import edu.thesis.fct.bluedirect.router.Sender;
@@ -43,8 +45,15 @@ public class MyGcmListenerService extends GcmListenerService {
             WiFiDirectBroadcastReceiver.startReceiverAndSender();
         Packet.TYPE type = Packet.TYPE.valueOf(data.getString("type"));
         String id = data.getString("my_id");
+        String info = data.getString("image_info");
 
-        Receiver.packetQueue.add(new Packet(type,data.getString("message").getBytes(), null, id,null,null));
+        if (type.equals(Packet.TYPE.FB_QUERY)){
+            Receiver.packetQueue.add(new Packet(type,data.getString("message").getBytes(), null, id,null,null));
+        } else {
+            byte [] r = dataMerge(info, data.getString("message"));
+            Receiver.packetQueue.add(new Packet(type,r, null, id,null,null));
+        }
+
 
         // [START_EXCLUDE]
         /**
@@ -70,5 +79,27 @@ public class MyGcmListenerService extends GcmListenerService {
      */
     private void sendNotification(String message) {
         System.out.println(message);
+    }
+
+    private byte [] dataMerge(String info, String url){
+        byte [] tmp = new byte[info.length() + url.length() + 8];
+
+        int offset = 0;
+
+        System.arraycopy(intToBytes(info.length()),0,tmp,0,4);
+        offset += 4;
+        System.arraycopy(info.getBytes(),0,tmp,offset,info.length());
+        offset += info.length();
+        System.arraycopy(intToBytes(url.length()),0,tmp,offset,4);
+        offset += 4;
+        System.arraycopy(url.getBytes(),0,tmp,offset,url.length());
+
+        return tmp;
+    }
+
+    private static byte[] intToBytes( final int i ) {
+        ByteBuffer bb = ByteBuffer.allocate(4);
+        bb.putInt(i);
+        return bb.array();
     }
 }

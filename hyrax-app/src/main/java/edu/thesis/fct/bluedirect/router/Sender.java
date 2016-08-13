@@ -62,7 +62,7 @@ public class Sender implements Runnable {
 			} else if (bundle.getMethod().equals(Packet.METHOD.BT)) {
 				BluedirectActivity.btService.write(p.serialize());
 			} else {
-				GCMSender.sendQuery(p);
+				GCMSender.sendPacket(p,null);
 			}
 
 		}

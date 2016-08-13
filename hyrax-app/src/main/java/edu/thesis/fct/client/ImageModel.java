@@ -92,4 +92,25 @@ public class ImageModel {
         writer.println(this.toString());
         writer.close();
     }
+
+    public static void writeToFile(File f, ImageModel i){
+        f.getParentFile().mkdirs();
+        try {
+            f.createNewFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        PrintWriter writer = null;
+        try {
+            writer = new PrintWriter(f, "UTF-8");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        writer.println(i.toString());
+        writer.close();
+    }
+
+
 }
