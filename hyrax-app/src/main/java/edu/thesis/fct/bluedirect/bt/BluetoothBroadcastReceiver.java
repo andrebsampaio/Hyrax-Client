@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
 
-import edu.thesis.fct.bluedirect.WiFiDirectActivity;
+import edu.thesis.fct.bluedirect.BluedirectActivity;
 import edu.thesis.fct.bluedirect.router.MeshNetworkManager;
 
 /**
@@ -50,7 +50,7 @@ public class BluetoothBroadcastReceiver extends BroadcastReceiver {
             new Thread()
             {
                 public void run() {
-                    while (WiFiDirectActivity.btService.bridge == null){
+                    while (BluedirectActivity.btService.bridge == null){
                         if (foundDevices.isEmpty()){
                             try {
                                 this.sleep(2000 * discoverySleepRate);
@@ -74,8 +74,8 @@ public class BluetoothBroadcastReceiver extends BroadcastReceiver {
                                 btSender.sendPacket(deviceTmp.getAddress(),MeshNetworkManager.getSelf().getGroupID(),false);
                             }*/
 
-                            if (WiFiDirectActivity.btService.getState() != BTService.STATE_CONNECTED && !seenDevices.contains(deviceTmp.getAddress())){
-                                WiFiDirectActivity.btService.connect(deviceTmp,true);
+                            if (BluedirectActivity.btService.getState() != BTService.STATE_CONNECTED && !seenDevices.contains(deviceTmp.getAddress())){
+                                BluedirectActivity.btService.connect(deviceTmp,true);
                                 seenDevices.add(deviceTmp.getAddress());
                             }
                         }

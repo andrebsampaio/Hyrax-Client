@@ -16,8 +16,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import edu.thesis.fct.bluedirect.BluedirectActivity;
 import edu.thesis.fct.client.R;
-import edu.thesis.fct.bluedirect.WiFiDirectActivity;
 import edu.thesis.fct.bluedirect.config.Configuration;
 import edu.thesis.fct.bluedirect.router.AllEncompasingP2PClient;
 import edu.thesis.fct.bluedirect.router.MeshNetworkManager;
@@ -105,7 +105,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 		// User has picked an image. Transfer it to group owner i.e peer using
 		// FileTransferService.
 		Uri uri = data.getData();
-		Log.d(WiFiDirectActivity.TAG, "Intent----------- " + uri);
+		Log.d(BluedirectActivity.TAG, "Intent----------- " + uri);
 	}
 
 	/**

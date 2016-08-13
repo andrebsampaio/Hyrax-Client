@@ -2,8 +2,9 @@ package edu.thesis.fct.bluedirect.router;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import edu.thesis.fct.bluedirect.WiFiDirectActivity;
+import edu.thesis.fct.bluedirect.BluedirectActivity;
 import edu.thesis.fct.bluedirect.config.Configuration;
+import edu.thesis.fct.bluedirect.fallback.GCMSender;
 import edu.thesis.fct.bluedirect.router.tcp.TcpSender;
 
 /**
@@ -51,12 +52,17 @@ public class Sender implements Runnable {
 			}
 
 			Packet p = ccl.remove();
-			IPBundle bundle = MeshNetworkManager.getIPForClient(p.getMac());
+			IPBundle bundle = null;
+			if (!p.getType().equals(Packet.TYPE.FB_QUERY) && !p.getType().equals(Packet.TYPE.FB_DATA)){
+				bundle = MeshNetworkManager.getIPForClient(p.getMac());
+			}
 
 			if (bundle.getMethod().equals(Packet.METHOD.WD)){
 				packetSender.sendPacket(bundle.getAddress(), Configuration.RECEIVE_PORT, p);
+			} else if (bundle.getMethod().equals(Packet.METHOD.BT)) {
+				BluedirectActivity.btService.write(p.serialize());
 			} else {
-				WiFiDirectActivity.btService.write(p.serialize());
+				GCMSender.sendQuery(p);
 			}
 
 		}

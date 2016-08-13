@@ -4,7 +4,7 @@ import android.widget.Toast;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import edu.thesis.fct.bluedirect.WiFiDirectActivity;
+import edu.thesis.fct.bluedirect.BluedirectActivity;
 import edu.thesis.fct.bluedirect.config.Configuration;
 import edu.thesis.fct.bluedirect.router.tcp.TcpReceiver;
 import edu.thesis.fct.bluedirect.ui.DeviceDetailFragment;
@@ -32,18 +32,18 @@ public class Receiver implements Runnable {
 	/*
 	 * A queue for received packets
 	 */
-	public ConcurrentLinkedQueue<Packet> packetQueue = new ConcurrentLinkedQueue<Packet>();
+	public static ConcurrentLinkedQueue<Packet> packetQueue = new ConcurrentLinkedQueue<Packet>();
 	
 	/**
 	 * A ref to the activity
 	 */
-	static WiFiDirectActivity activity;
+	static BluedirectActivity activity;
 
 	/**
 	 * Constructor with activity
 	 * @param a
 	 */
-	public Receiver(WiFiDirectActivity a) {
+	public Receiver(BluedirectActivity a) {
 		Receiver.activity = a;
 		running = true;
 	}
@@ -87,6 +87,13 @@ public class Receiver implements Runnable {
 			/*
 			 * If it's a hello, this is special and need to go through the connection mechanism for any node receiving this
 			 */
+			if (BluedirectActivity.fallback){
+				if (p.getType().equals(Packet.TYPE.FB_QUERY)
+						|| p.getType().equals(Packet.TYPE.FB_DATA)){
+					listener.onPacketReceived(p);
+					continue;
+				}
+			}
 			if (p.getType().equals(Packet.TYPE.HELLO)) {
 				// Put it in your routing table
 				for (AllEncompasingP2PClient c : MeshNetworkManager.routingTable.values()) {
@@ -130,8 +137,8 @@ public class Receiver implements Runnable {
 						MeshNetworkManager.getSelf().setGroupID(a.getGroupID());
 						somebodyJoined(p.getSenderMac());
 						updatePeerList();
-						if (WiFiDirectActivity.btService == null)
-							WiFiDirectActivity.btService = Configuration.startBluetoothConnections(activity,this);
+						if (BluedirectActivity.btService == null)
+							BluedirectActivity.btService = Configuration.startBluetoothConnections(activity,this);
 					} else if (p.getType().equals(Packet.TYPE.UPDATE)) {
 						//if it's an update, add to the table
 						String emb_mac = Packet.getMacBytesAsString(p.getData(), 0);

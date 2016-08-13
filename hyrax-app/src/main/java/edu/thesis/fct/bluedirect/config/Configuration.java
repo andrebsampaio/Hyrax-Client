@@ -1,11 +1,13 @@
 package edu.thesis.fct.bluedirect.config;
 
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 
 import edu.thesis.fct.bluedirect.bt.BTService;
 import edu.thesis.fct.bluedirect.bt.BluetoothBroadcastReceiver;
@@ -36,6 +38,11 @@ public class Configuration {
         BluetoothManager ba=(BluetoothManager)context.getSystemService(Context.BLUETOOTH_SERVICE);
         return ba.getAdapter().getAddress();
     }
+
+	public static String getFallbackId(Activity context){
+		SharedPreferences sharedPref = context.getPreferences(Context.MODE_PRIVATE);
+		return sharedPref.getString("instance_token",null);
+	}
 
 	private static void ensureDiscoverable(Context context) {
 		BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();

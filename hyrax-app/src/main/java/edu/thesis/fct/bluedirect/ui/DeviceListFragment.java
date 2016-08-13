@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import edu.thesis.fct.client.R;
-import edu.thesis.fct.bluedirect.WiFiDirectActivity;
+import edu.thesis.fct.bluedirect.BluedirectActivity;
 
 /**
  * A ListFragment that displays available peers on discovery and requests the
@@ -70,7 +70,7 @@ public class DeviceListFragment extends ListFragment implements PeerListListener
 	 * @return
 	 */
 	private static String getDeviceStatus(int deviceStatus) {
-		Log.d(WiFiDirectActivity.TAG, "Peer status :" + deviceStatus);
+		Log.d(BluedirectActivity.TAG, "Peer status :" + deviceStatus);
 		switch (deviceStatus) {
 		case WifiP2pDevice.AVAILABLE:
 			return "Available";
@@ -166,7 +166,7 @@ public class DeviceListFragment extends ListFragment implements PeerListListener
 		((WiFiPeerListAdapter) getListAdapter()).notifyDataSetChanged();
 
 		if (peers.size() == 0) {
-			Log.d(WiFiDirectActivity.TAG, "No devices found");
+			Log.d(BluedirectActivity.TAG, "No devices found");
 			return;
 		}
 

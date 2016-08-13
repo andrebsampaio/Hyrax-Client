@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
@@ -15,10 +16,19 @@ import android.net.wifi.p2p.WifiP2pManager.ChannelListener;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
+import android.preference.PreferenceManager;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
+
+import com.android.volley.DefaultRetryPolicy;
+import com.android.volley.NetworkResponse;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GoogleApiAvailability;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -34,6 +44,9 @@ import java.util.List;
 import edu.thesis.fct.bluedirect.bt.BTService;
 import edu.thesis.fct.bluedirect.bt.BluetoothBroadcastReceiver;
 import edu.thesis.fct.bluedirect.config.Configuration;
+import edu.thesis.fct.bluedirect.fallback.FileSender;
+import edu.thesis.fct.bluedirect.fallback.QuickstartPreferences;
+import edu.thesis.fct.bluedirect.fallback.RegistrationIntentService;
 import edu.thesis.fct.bluedirect.router.MeshNetworkManager;
 import edu.thesis.fct.bluedirect.router.Packet;
 import edu.thesis.fct.bluedirect.router.Receiver;
@@ -45,6 +58,9 @@ import edu.thesis.fct.bluedirect.wifi.WiFiDirectBroadcastReceiver;
 import edu.thesis.fct.client.GalleryActivity;
 import edu.thesis.fct.client.ImageModel;
 import edu.thesis.fct.client.ListingSingleton;
+import edu.thesis.fct.client.LoginActivity;
+import edu.thesis.fct.client.MultipartRequest;
+import edu.thesis.fct.client.MySingleton;
 import edu.thesis.fct.client.R;
 
 /**
@@ -56,13 +72,13 @@ import edu.thesis.fct.client.R;
  * 
  * Note: much of this is taken from the Wi-Fi P2P example 
  */
-public class WiFiDirectActivity extends Activity implements ChannelListener, DeviceActionListener {
+public class BluedirectActivity extends Activity implements ChannelListener, DeviceActionListener {
 
 	public static final String TAG = "wifidirectdemo";
 	private WifiP2pManager manager;
 	private boolean isWifiP2pEnabled = false;
 	private boolean retryChannel = false;
-
+	private static final int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
 	private final IntentFilter intentFilter = new IntentFilter();
 	private final IntentFilter wifiIntentFilter = new IntentFilter();
 	private final IntentFilter btIntentFilter = new IntentFilter();
@@ -70,13 +86,18 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
 	private BroadcastReceiver receiver = null;
 	private BluetoothBroadcastReceiver btReceiver = null;
 	public static BTService btService = null;
+	private BroadcastReceiver mRegistrationBroadcastReceiver;
+	private boolean isReceiverRegistered;
+
 
 	WifiManager wifiManager;
 	private boolean isWifiConnected;
 
 	public boolean isVisible = true;
 
-	WiFiDirectActivity context;
+	BluedirectActivity context;
+
+	public static boolean fallback = false;
 
 	static int totalToReceive = 0;
 
@@ -112,17 +133,20 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
 		BluedirectAPI.setOnPacketReceivedListener(new Receiver.onPacketReceivedListener() {
 			@Override
 			public void onPacketReceived(Packet p) {
-				if (p.getType().equals(Packet.TYPE.QUERY)) {
+				if (p.getType().equals(Packet.TYPE.QUERY) || p.getType().equals(Packet.TYPE.FB_QUERY) ) {
 					String username = new String(p.getData());
-
-					checkAndSendImages(username, p.getSenderMac(), p.getBtSMac(), context);
+					if (!BluedirectActivity.fallback){
+						checkAndSendImages(username, p.getSenderMac(), null, context);
+					} else {
+						checkAndSendImages(username, p.getSenderMac(), p.getBtSMac(), context);
+					}
 				} else if (p.getType().equals(Packet.TYPE.FILE)) {
 					new SavePhotoTask(p.getMac()).execute(p.getData());
-				} else {
+				} else if (p.getType().equals(Packet.TYPE.FILE_COUNT)) {
 					int count = ByteBuffer.wrap(p.getData()).getInt();
 					totalToReceive += count;
 					updateProgressDialog(totalToReceive);
-
+				} else {
 
 				}
 			}
@@ -133,7 +157,7 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
 			@Override
 			public void onGroupLeave() {
 				if (!isVisible)
-				startActivity(getIntent(context, WiFiDirectActivity.class));
+				startActivity(getIntent(context, BluedirectActivity.class));
 			}
 		});
 
@@ -148,18 +172,70 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
 
 					@Override
 					public void onSuccess() {
-						Toast.makeText(WiFiDirectActivity.this, "Discovery Initiated", Toast.LENGTH_SHORT).show();
+						Toast.makeText(BluedirectActivity.this, "Discovery Initiated", Toast.LENGTH_SHORT).show();
 					}
 
 					@Override
 					public void onFailure(int reasonCode) {
-						Toast.makeText(WiFiDirectActivity.this, "Discovery Failed : " + reasonCode, Toast.LENGTH_SHORT)
+						Toast.makeText(BluedirectActivity.this, "Discovery Failed : " + reasonCode, Toast.LENGTH_SHORT)
 								.show();
 					}
 				});
 			}
 		});
 
+
+		mRegistrationBroadcastReceiver = new BroadcastReceiver() {
+			@Override
+			public void onReceive(Context context, Intent intent) {
+				SharedPreferences sharedPreferences =
+						PreferenceManager.getDefaultSharedPreferences(context);
+				boolean sentToken = sharedPreferences
+						.getBoolean(QuickstartPreferences.SENT_TOKEN_TO_SERVER, false);
+				System.out.println("Token Sent: " + sentToken);
+			}
+		};
+		registerReceiver(context);
+
+		if (checkPlayServices()) {
+			// Start IntentService to register this application with GCM.
+			Intent intent = new Intent(context, RegistrationIntentService.class);
+			startService(intent);
+		}
+
+		final Button fbMode = (Button) findViewById(R.id.btn_fallback);
+		fbMode.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				fallback = true;
+				LoginActivity.proceedFromLogin(v.getContext());
+			}
+		});
+
+	}
+
+	private void registerReceiver(Context context){
+		if(!isReceiverRegistered) {
+			LocalBroadcastManager.getInstance(context).registerReceiver(mRegistrationBroadcastReceiver,
+					new IntentFilter(QuickstartPreferences.REGISTRATION_COMPLETE));
+			isReceiverRegistered = true;
+		}
+	}
+
+	private boolean checkPlayServices() {
+		GoogleApiAvailability apiAvailability = GoogleApiAvailability.getInstance();
+		int resultCode = apiAvailability.isGooglePlayServicesAvailable(this);
+		if (resultCode != ConnectionResult.SUCCESS) {
+			if (apiAvailability.isUserResolvableError(resultCode)) {
+				apiAvailability.getErrorDialog(this, resultCode, PLAY_SERVICES_RESOLUTION_REQUEST)
+						.show();
+			} else {
+				Log.i(TAG, "This device is not supported.");
+				finish();
+			}
+			return false;
+		}
+		return true;
 	}
 
 
@@ -174,7 +250,8 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
 			}
 		}
 
-		BluedirectAPI.sendToClient(intToBytes(toSend.size()), rcvMac, btRcvMac, Packet.TYPE.FILE_COUNT,context);
+		if (!BluedirectActivity.fallback)
+			BluedirectAPI.sendToClient(intToBytes(toSend.size()), rcvMac, btRcvMac, Packet.TYPE.FILE_COUNT,context);
 
 		for (ImageModel i : toSend){
 			sendFile(i, rcvMac,btRcvMac,context);
@@ -195,7 +272,15 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
 
 	private static void sendFile(ImageModel i, String rcvMac, String btRcvMac, Context context){
 		File file = new File(Environment.getExternalStorageDirectory() + File.separator + "Hyrax" + File.separator + i.getPhotoName() + File.separator + i.getPhotoName() + ".jpg");
-		Sender.queuePacket(new Packet(Packet.TYPE.FILE, ImageToBytes(i, file), rcvMac, WiFiDirectBroadcastReceiver.MAC, btRcvMac, Configuration.getBluetoothSelfMac(context)));
+		if (!BluedirectActivity.fallback)
+			Sender.queuePacket(new Packet(Packet.TYPE.FILE, ImageToBytes(i, file), rcvMac, WiFiDirectBroadcastReceiver.MAC, btRcvMac, Configuration.getBluetoothSelfMac(context)));
+		else {
+			try {
+				FileSender.sendFile(file,"URL", context);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	private static Intent getIntent(Context context, Class<?> cls) {
@@ -360,7 +445,7 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
 
 			@Override
 			public void onFailure(int reason) {
-				Toast.makeText(WiFiDirectActivity.this, "Connect failed. Retry.", Toast.LENGTH_SHORT).show();
+				Toast.makeText(BluedirectActivity.this, "Connect failed. Retry.", Toast.LENGTH_SHORT).show();
 			}
 		});
 	}
@@ -421,12 +506,12 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
 
 					@Override
 					public void onSuccess() {
-						Toast.makeText(WiFiDirectActivity.this, "Aborting connection", Toast.LENGTH_SHORT).show();
+						Toast.makeText(BluedirectActivity.this, "Aborting connection", Toast.LENGTH_SHORT).show();
 					}
 
 					@Override
 					public void onFailure(int reasonCode) {
-						Toast.makeText(WiFiDirectActivity.this,
+						Toast.makeText(BluedirectActivity.this,
 								"Connect abort request failed. Reason Code: " + reasonCode, Toast.LENGTH_SHORT).show();
 					}
 				});

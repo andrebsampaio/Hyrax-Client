@@ -13,11 +13,11 @@ public class Packet {
 	 *
 	 */
 	public enum TYPE {
-		HELLO, HELLO_ACK, BYE, QUERY, UPDATE, HELLO_BT, FILE, FILE_COUNT
+		HELLO, HELLO_ACK, BYE, QUERY, UPDATE, HELLO_BT, FILE, FILE_COUNT, FB_QUERY, FB_DATA
 	};
 
 	public enum METHOD {
-		WD,BT
+		WD,BT, FB
 	};
 
 	private byte[] data;

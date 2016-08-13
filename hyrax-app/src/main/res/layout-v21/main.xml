@@ -31,6 +31,13 @@
         android:layout_height="wrap_content"
         android:text="@string/discover_peers_button" />
 
+    <Button
+        android:id="@+id/btn_fallback"
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Fallback Mode" />
+
 
 
 </LinearLayout>

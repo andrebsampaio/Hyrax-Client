@@ -1,8 +1,10 @@
 package edu.thesis.fct.bluedirect;
 
+import android.app.Activity;
 import android.content.Context;
 
 import edu.thesis.fct.bluedirect.config.Configuration;
+import edu.thesis.fct.bluedirect.fallback.GCMSender;
 import edu.thesis.fct.bluedirect.router.AllEncompasingP2PClient;
 import edu.thesis.fct.bluedirect.router.MeshNetworkManager;
 import edu.thesis.fct.bluedirect.router.Packet;
@@ -17,15 +19,21 @@ public class BluedirectAPI {
 
     public static void broadcastQuery(String msg, Context activity){
         // Send to other clients as a group chat message
-        for (AllEncompasingP2PClient c : MeshNetworkManager.routingTable.values()) {
-            if (c.getMac().equals(MeshNetworkManager.getSelf().getMac()))
-                continue;
-            Sender.queuePacket(new Packet(Packet.TYPE.QUERY, msg.getBytes(), c.getMac(),
-                    WiFiDirectBroadcastReceiver.MAC, c.getBtmac(), Configuration.getBluetoothSelfMac(activity)));
+        if (!BluedirectActivity.fallback){
+            for (AllEncompasingP2PClient c : MeshNetworkManager.routingTable.values()) {
+                if (c.getMac().equals(MeshNetworkManager.getSelf().getMac()))
+                    continue;
+                Sender.queuePacket(new Packet(Packet.TYPE.QUERY, msg.getBytes(), c.getMac(),
+                        WiFiDirectBroadcastReceiver.MAC, c.getBtmac(), Configuration.getBluetoothSelfMac(activity)));
+            }
+        } else {
+            GCMSender.sendQuery(new Packet(Packet.TYPE.FB_QUERY,msg.getBytes(),null, Configuration.getFallbackId((Activity)activity),null,null));
         }
+
     }
 
     public static void broadcastFile(byte[] file, Context activity){
+
         for (AllEncompasingP2PClient c : MeshNetworkManager.routingTable.values()) {
             if (c.getMac().equals(MeshNetworkManager.getSelf().getMac()))
                 continue;
@@ -35,7 +43,11 @@ public class BluedirectAPI {
     }
 
     public static void sendToClient(byte [] data, String mac,String btmac, Packet.TYPE type, Context activity){
-        Sender.queuePacket(new Packet(type,data,mac,WiFiDirectBroadcastReceiver.MAC,btmac,Configuration.getBluetoothSelfMac(activity)));
+        if (!BluedirectActivity.fallback){
+            Sender.queuePacket(new Packet(type,data,mac,WiFiDirectBroadcastReceiver.MAC,btmac,Configuration.getBluetoothSelfMac(activity)));
+        } else {
+            GCMSender.sendQuery(new Packet(Packet.TYPE.FB_QUERY,data,mac, Configuration.getFallbackId((Activity)activity),null,null));
+        }
     }
 
     public static void setOnPacketReceivedListener(Receiver.onPacketReceivedListener listener){

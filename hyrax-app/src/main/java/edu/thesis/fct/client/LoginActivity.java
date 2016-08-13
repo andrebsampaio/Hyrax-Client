@@ -1,5 +1,6 @@
 package edu.thesis.fct.client;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -15,27 +16,20 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
-import android.text.Editable;
 import android.util.Log;
-import android.view.Menu;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
 import com.android.volley.Request;
-import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.RequestFuture;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.yalantis.cameramodule.ManagerInitializer;
 import com.yalantis.cameramodule.activity.CameraActivity;
 import com.yalantis.cameramodule.interfaces.PhotoSavedListener;
-
-import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -48,10 +42,8 @@ import java.util.Map;
 import java.util.Scanner;
 
 
-import javax.xml.datatype.Duration;
-
+import edu.thesis.fct.bluedirect.BluedirectActivity;
 import edu.thesis.fct.bluedirect.BluedirectAPI;
-import edu.thesis.fct.bluedirect.WiFiDirectActivity;
 import edu.thesis.fct.bluedirect.router.MeshNetworkManager;
 
 public class LoginActivity extends AppCompatActivity {
@@ -70,19 +62,21 @@ public class LoginActivity extends AppCompatActivity {
     NsdManager mNsdManager;
     int port;
     InetAddress host;
+    ProgressDialog progressDialog;
     String mServiceName = "hyrax";
     String loginURL;
     String user;
     boolean isRemote = false;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.login_layout);
         context = this;
-        Button login = (Button) this.findViewById(R.id.loginButton);
         Button register = (Button) this.findViewById(R.id.registerButton);
         Button newSession = (Button) this.findViewById(R.id.newsession);
+        Button login = (Button) this.findViewById(R.id.loginButton);
         username = (EditText) this.findViewById(R.id.username);
 
         getWindow().getDecorView().setSystemUiVisibility(
@@ -118,23 +112,24 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
 
+
         BluedirectAPI.setOnGroupJoinedListener(new MeshNetworkManager.onGroupJoinedListener() {
             @Override
             public void onGroupJoined() {
 
-                Thread t = new Thread() {
+                ((Activity) context).runOnUiThread(new Runnable() {
+                    @Override
                     public void run() {
-                        loadImagesFromStorage();
+                        progressDialog = ProgressDialog.show(context, "dialog title",
+                                "dialog message", true);
+                        progressDialog.setCancelable(false);
                     }
-                };
-                t.start();
+                });
 
-                ManagerInitializer.i.init(getApplicationContext());
-                Intent intent = new Intent(context, CameraActivity.class);
-                intent.putExtra(CameraActivity.PATH, Environment.getExternalStorageDirectory().getPath());
-                intent.putExtra(CameraActivity.OPEN_PHOTO_PREVIEW, false);
-                intent.putExtra(CameraActivity.USE_FRONT_CAMERA, false);
-                startActivity(intent);
+
+                loadImagesFromStorage();
+
+                loadCamera(context);
             }
         });
 
@@ -152,7 +147,7 @@ public class LoginActivity extends AppCompatActivity {
         CameraActivity.addPhotoSavedListener(new PhotoSavedListener() {
             @Override
             public void photoSaved(String s, String s1) {
-                //RECOGNITION AND FILE SAVING
+                //new FaceRecognitionAsync(new File(s),(Activity)context).execute();
             }
         });
 
@@ -165,6 +160,7 @@ public class LoginActivity extends AppCompatActivity {
                     Toast.makeText(context, "Please insert a username", Toast.LENGTH_LONG ).show();
                 }  else {
                     saveUsername(name);
+
                     //checkUsername(name.toLowerCase(), loginURL, true);
 
                 }
@@ -191,20 +187,41 @@ public class LoginActivity extends AppCompatActivity {
         Log.d("INSTANT", "registered content observer");
     }
 
-    private void loadImagesFromStorage() {
-        try {
-            Map<Integer,ImageModel> tmp = new HashMap<>();
-            Scanner scanner = new Scanner(ListingSingleton.listing);
-            while (scanner.hasNext()){
-                String s = scanner.next();
-                ImageModel i = ImageModel.fromString(s);
-                tmp.put(i.getId(), i);
+    private static void loadImagesFromStorage() {
+        Thread t = new Thread() {
+            public void run() {
+                try {
+                    Map<Integer,ImageModel> tmp = new HashMap<>();
+                    Scanner scanner = new Scanner(ListingSingleton.listing);
+                    while (scanner.hasNext()){
+                        String s = scanner.next();
+                        ImageModel i = ImageModel.fromString(s);
+                        tmp.put(i.getId(), i);
+                    }
+                    ListingSingleton.getInstance().setImages(tmp);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
             }
-            ListingSingleton.getInstance().setImages(tmp);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
+        };
+        t.start();
 
+    }
+
+    public static void proceedFromLogin(Context context){
+        loadImagesFromStorage();
+        loadCamera(context);
+    }
+
+    private static void loadCamera(Context context){
+        new FaceRecognitionAsync(new File(Environment.getExternalStorageDirectory() + File.separator +"train"), (Activity) context).execute();
+
+        ManagerInitializer.i.init(context);
+        Intent intent = new Intent(context, CameraActivity.class);
+        intent.putExtra(CameraActivity.PATH, Environment.getExternalStorageDirectory().getPath());
+        intent.putExtra(CameraActivity.OPEN_PHOTO_PREVIEW, false);
+        intent.putExtra(CameraActivity.USE_FRONT_CAMERA, false);
+        context.startActivity(intent);
     }
 
     private void setLoginURL(){
@@ -225,7 +242,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void saveUsername(final String text){
-        Intent myIntent = new Intent(context, WiFiDirectActivity.class);
+        Intent myIntent = new Intent(context, BluedirectActivity.class);
         SharedPreferences pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
         SharedPreferences.Editor editor = pref.edit();
         editor.putString("username", text);

@@ -30,8 +30,8 @@ import android.util.Log;
 
 import java.util.UUID;
 
+import edu.thesis.fct.bluedirect.BluedirectActivity;
 import edu.thesis.fct.client.R;
-import edu.thesis.fct.bluedirect.WiFiDirectActivity;
 import edu.thesis.fct.bluedirect.config.Configuration;
 import edu.thesis.fct.bluedirect.router.AllEncompasingP2PClient;
 import edu.thesis.fct.bluedirect.router.MeshNetworkManager;
@@ -47,8 +47,8 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
 
 	private WifiP2pManager manager;
 	private Channel channel;
-	private WiFiDirectActivity activity;
-	public Receiver r;
+	private static BluedirectActivity activity;
+	public static Receiver r = null;
 	public static String GID = UUID.randomUUID().toString();
 	public static String MAC;
 	public static int state;
@@ -61,11 +61,20 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
 	 * @param activity
 	 *            activity associated with the receiver
 	 */
-	public WiFiDirectBroadcastReceiver(WifiP2pManager manager, Channel channel, WiFiDirectActivity activity) {
+	public WiFiDirectBroadcastReceiver(WifiP2pManager manager, Channel channel, BluedirectActivity activity) {
 		super();
 		this.manager = manager;
 		this.channel = channel;
 		this.activity = activity;
+	}
+
+	public static void startReceiverAndSender(){
+		if (!Receiver.running) {
+			r = new Receiver(activity);
+			new Thread(r).start();
+			Sender s = new Sender();
+			new Thread(s).start();
+		}
 	}
 
 	/**
@@ -88,12 +97,12 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
 
 					@Override
 					public void onSuccess() {
-						Log.d(WiFiDirectActivity.TAG, "P2P Group created");
+						Log.d(BluedirectActivity.TAG, "P2P Group created");
 					}
 
 					@Override
 					public void onFailure(int reason) {
-						Log.d(WiFiDirectActivity.TAG, "P2P Group failed");
+						Log.d(BluedirectActivity.TAG, "P2P Group failed");
 					}
 				});
 			} else {
@@ -102,7 +111,7 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
 
 			}
 
-			Log.d(WiFiDirectActivity.TAG, "P2PACTION : WIFI_P2P_STATE_CHANGED_ACTION state = " + state);
+			Log.d(BluedirectActivity.TAG, "P2PACTION : WIFI_P2P_STATE_CHANGED_ACTION state = " + state);
 		} else if (WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION.equals(action)) {
 
 			// request available peers from the wifi p2p manager. This is an
@@ -112,7 +121,7 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
 				manager.requestPeers(channel,
 						(PeerListListener) activity.getFragmentManager().findFragmentById(R.id.frag_list));
 			}
-			Log.d(WiFiDirectActivity.TAG, "P2PACTION : WIFI_P2P_PEERS_CHANGED_ACTION");
+			Log.d(BluedirectActivity.TAG, "P2PACTION : WIFI_P2P_PEERS_CHANGED_ACTION");
 		} else if (WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION.equals(action)) {
 
 			if (manager == null) {
@@ -129,7 +138,7 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
 				manager.requestConnectionInfo(channel, fragment);
 			} else {
 				// It's a disconnect
-				Log.d(WiFiDirectActivity.TAG, "P2PACTION : WIFI_P2P_CONNECTION_CHANGED_ACTION -- DISCONNECT");
+				Log.d(BluedirectActivity.TAG, "P2PACTION : WIFI_P2P_CONNECTION_CHANGED_ACTION -- DISCONNECT");
 				activity.resetData();
 			}
 		} else if (WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION.equals(action)) {
@@ -148,21 +157,16 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
 					device.deviceAddress,GID,null));
 
 			//Launch receiver and sender once connected to someone
-			if (!Receiver.running) {
-				r = new Receiver(this.activity);
-				new Thread(r).start();
-				Sender s = new Sender();
-				new Thread(s).start();
-			}
+			startReceiverAndSender();
 
 
 			manager.requestGroupInfo(channel, new WifiP2pManager.GroupInfoListener() {
 				@Override
 				public void onGroupInfoAvailable(WifiP2pGroup group) {
 					if (group != null) {
-						if (group.isGroupOwner() && WiFiDirectActivity.btService == null){
+						if (group.isGroupOwner() && BluedirectActivity.btService == null){
 							if (r != null){
-								WiFiDirectActivity.btService = Configuration.startBluetoothConnections(activity,r);
+								BluedirectActivity.btService = Configuration.startBluetoothConnections(activity,r);
 							}
 
 						}
@@ -170,8 +174,8 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
 						String ssid = group.getNetworkName();
 						String passphrase = group.getPassphrase();
 
-						Log.d(WiFiDirectActivity.TAG, "GROUP INFO AVALABLE");
-						Log.d(WiFiDirectActivity.TAG, " SSID : " + ssid + "\n Passphrase : " + passphrase);
+						Log.d(BluedirectActivity.TAG, "GROUP INFO AVALABLE");
+						Log.d(BluedirectActivity.TAG, " SSID : " + ssid + "\n Passphrase : " + passphrase);
 
 					}
 				}

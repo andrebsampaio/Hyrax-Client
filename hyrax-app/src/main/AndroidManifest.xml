@@ -30,7 +30,7 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name="edu.thesis.fct.bluedirect.WiFiDirectActivity"
+        <activity android:name="edu.thesis.fct.bluedirect.BluedirectActivity"
             android:theme="@android:style/Theme.Holo.Light.Dialog"/>
         <activity
             android:name=".GalleryActivity"
@@ -48,9 +48,40 @@
             </intent-filter>
         </activity>
 
+        <!-- [START gcm_receiver] -->
+        <receiver
+            android:name="com.google.android.gms.gcm.GcmReceiver"
+            android:exported="true"
+            android:permission="com.google.android.c2dm.permission.SEND" >
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+                <category android:name="gcm.play.android.samples.com.gcmquickstart" />
+            </intent-filter>
+        </receiver>
+        <!-- [END gcm_receiver] -->
+
+        <!-- [START gcm_listener] -->
         <service
-            android:name=".BluetoothServerService"
-            android:exported="false"></service>
+            android:name="edu.thesis.fct.bluedirect.fallback.MyGcmListenerService"
+            android:exported="false" >
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+            </intent-filter>
+        </service>
+        <!-- [END gcm_listener] -->
+        <!-- [START instanceId_listener] -->
+        <service
+            android:name="edu.thesis.fct.bluedirect.fallback.MyInstanceIDListenerService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.android.gms.iid.InstanceID"/>
+            </intent-filter>
+        </service>
+        <!-- [END instanceId_listener] -->
+        <service
+            android:name="edu.thesis.fct.bluedirect.fallback.RegistrationIntentService"
+            android:exported="false">
+        </service>
     </application>
 
 </manifest>
