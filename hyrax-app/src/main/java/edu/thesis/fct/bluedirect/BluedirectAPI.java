@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 
 import edu.thesis.fct.bluedirect.config.Configuration;
+import edu.thesis.fct.bluedirect.fallback.FBSender;
 import edu.thesis.fct.bluedirect.fallback.GCMSender;
 import edu.thesis.fct.bluedirect.router.AllEncompasingP2PClient;
 import edu.thesis.fct.bluedirect.router.MeshNetworkManager;
@@ -27,7 +28,7 @@ public class BluedirectAPI {
                         WiFiDirectBroadcastReceiver.MAC, c.getBtmac(), Configuration.getBluetoothSelfMac(activity)));
             }
         } else {
-            GCMSender.sendPacket(new Packet(Packet.TYPE.FB_QUERY,msg.getBytes(),null, Configuration.getFallbackId((Activity)activity),null,null),null);
+            FBSender.queuePacket(new Packet(Packet.TYPE.FB_QUERY,msg.getBytes(),null, Configuration.getFallbackId((Activity)activity),null,null),null);
         }
 
     }
@@ -46,7 +47,7 @@ public class BluedirectAPI {
         if (!BluedirectActivity.fallback){
             Sender.queuePacket(new Packet(type,data,mac,WiFiDirectBroadcastReceiver.MAC,btmac,Configuration.getBluetoothSelfMac(activity)));
         } else {
-            GCMSender.sendPacket(new Packet(Packet.TYPE.FB_QUERY,data,mac, Configuration.getFallbackId((Activity)activity),null,null),null);
+            FBSender.queuePacket(new Packet(Packet.TYPE.FB_QUERY,data,mac, Configuration.getFallbackId((Activity)activity),null,null),null);
         }
     }
 

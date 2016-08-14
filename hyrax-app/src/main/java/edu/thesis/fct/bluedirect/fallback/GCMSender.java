@@ -1,6 +1,7 @@
 package edu.thesis.fct.bluedirect.fallback;
 
 import android.content.SharedPreferences;
+import android.os.Bundle;
 
 import org.apache.commons.io.IOUtils;
 import org.json.JSONException;
@@ -11,6 +12,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import edu.thesis.fct.bluedirect.router.Packet;
@@ -30,7 +32,13 @@ public class GCMSender {
             JSONObject jData = new JSONObject();
             jData.put("my_id", p.getSenderMac());
             jData.put("type", p.getType().toString());
-            jData.put("message", new String(p.getData()));
+            if (p.getType().equals(Packet.TYPE.FB_COUNT)){
+                int val = ByteBuffer.wrap(p.getData()).getInt();
+                jData.put("message", val);
+            } else {
+                jData.put("message", new String(p.getData()));
+            }
+
             if (p.getType().equals(Packet.TYPE.FB_DATA)){
                 jData.put("image_info", i.toString());
             }

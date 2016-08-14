@@ -89,7 +89,7 @@ public class Receiver implements Runnable {
 			 */
 			if (BluedirectActivity.fallback){
 				if (p.getType().equals(Packet.TYPE.FB_QUERY)
-						|| p.getType().equals(Packet.TYPE.FB_DATA)){
+						|| p.getType().equals(Packet.TYPE.FB_DATA) || p.getType().equals(Packet.TYPE.FB_COUNT)){
 					listener.onPacketReceived(p);
 					continue;
 				}

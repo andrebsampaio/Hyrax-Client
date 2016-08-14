@@ -24,14 +24,11 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
-import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.NetworkResponse;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.ImageRequest;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -39,6 +36,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URL;
+import java.net.URLConnection;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,8 +47,8 @@ import java.util.List;
 import edu.thesis.fct.bluedirect.bt.BTService;
 import edu.thesis.fct.bluedirect.bt.BluetoothBroadcastReceiver;
 import edu.thesis.fct.bluedirect.config.Configuration;
+import edu.thesis.fct.bluedirect.fallback.FBSender;
 import edu.thesis.fct.bluedirect.fallback.FileSender;
-import edu.thesis.fct.bluedirect.fallback.GCMSender;
 import edu.thesis.fct.bluedirect.fallback.QuickstartPreferences;
 import edu.thesis.fct.bluedirect.fallback.RegistrationIntentService;
 import edu.thesis.fct.bluedirect.router.MeshNetworkManager;
@@ -62,8 +63,6 @@ import edu.thesis.fct.client.GalleryActivity;
 import edu.thesis.fct.client.ImageModel;
 import edu.thesis.fct.client.ListingSingleton;
 import edu.thesis.fct.client.LoginActivity;
-import edu.thesis.fct.client.MultipartRequest;
-import edu.thesis.fct.client.MySingleton;
 import edu.thesis.fct.client.R;
 
 /**
@@ -136,23 +135,34 @@ public class BluedirectActivity extends Activity implements ChannelListener, Dev
 		BluedirectAPI.setOnPacketReceivedListener(new Receiver.onPacketReceivedListener() {
 			@Override
 			public void onPacketReceived(Packet p) {
+				if(p.getType().equals(Packet.TYPE.FB_QUERY) || p.getType().equals(Packet.TYPE.FB_DATA)
+						|| p.getType().equals(Packet.TYPE.FB_COUNT) ){
+					if (p.getSenderMac().equals(Configuration.getFallbackId(context))) return;
+				}
 				if (p.getType().equals(Packet.TYPE.QUERY) || p.getType().equals(Packet.TYPE.FB_QUERY) ) {
 					String username = new String(p.getData());
 					if (!BluedirectActivity.fallback){
-						checkAndSendImages(username, p.getSenderMac(), null, context);
-					} else {
 						checkAndSendImages(username, p.getSenderMac(), p.getBtSMac(), context);
+					} else {
+						checkAndSendImages(username, p.getSenderMac(), null, context);
 					}
 				} else if (p.getType().equals(Packet.TYPE.FILE)) {
 					new SavePhotoTask(p.getMac()).execute(p.getData());
-				} else if (p.getType().equals(Packet.TYPE.FILE_COUNT)) {
-					int count = ByteBuffer.wrap(p.getData()).getInt();
+				} else if (p.getType().equals(Packet.TYPE.FILE_COUNT) || p.getType().equals(Packet.TYPE.FB_COUNT)) {
+					int count = 0;
+					if (p.getType().equals(Packet.TYPE.FB_COUNT))
+						count = Integer.valueOf(new String(p.getData()));
+					else
+						count = ByteBuffer.wrap(p.getData()).getInt();
+
 					totalToReceive += count;
 					updateProgressDialog(totalToReceive);
-				} else {
+				} else if (p.getType().equals(Packet.TYPE.FB_DATA)) {
 					String [] info = deserializePacket(p);
 					ImageModel i = ImageModel.fromString(info[0]);
-					downloadImage(info[1], i);
+					File location = new File(Environment.getExternalStorageDirectory().getAbsolutePath()
+							+ File.separator + "Hyrax" + File.separator + i.getPhotoName() + File.separator + i.getPhotoName() + ".jpg");
+					new DownloadFileFromURL(location,info[1], i).execute();
 				}
 			}
 		});
@@ -202,10 +212,16 @@ public class BluedirectActivity extends Activity implements ChannelListener, Dev
 		};
 		registerReceiver(context);
 
+
 		if (checkPlayServices()) {
 			// Start IntentService to register this application with GCM.
 			Intent intent = new Intent(context, RegistrationIntentService.class);
 			startService(intent);
+			if (!FBSender.running){
+				FBSender sender = new FBSender();
+				new Thread(sender).start();
+				FBSender.running = true;
+			}
 		}
 
 		final Button fbMode = (Button) findViewById(R.id.btn_fallback);
@@ -239,19 +255,6 @@ public class BluedirectActivity extends Activity implements ChannelListener, Dev
 			e.printStackTrace();
 		}
 		return null;
-	}
-
-	private void downloadImage(String url, final ImageModel i){
-		ImageRequest ir = new ImageRequest(url, new Response.Listener<Bitmap>() {
-
-			@Override
-			public void onResponse(Bitmap response) {
-				File location = new File(Environment.getExternalStorageDirectory().getAbsolutePath()
-						+ File.separator + "Hyrax" + File.separator + i.getPhotoName() + File.separator + i.getPhotoName() + ".jpg");
-				storeBitmap(response, location );
-				ImageModel.writeToFile(location,i);
-			}
-		}, 0, 0, null, null);
 	}
 
 	private void storeBitmap(Bitmap bmp, File filename){
@@ -299,8 +302,8 @@ public class BluedirectActivity extends Activity implements ChannelListener, Dev
 	}
 
 
-	private void checkAndSendImages(String username, String rcvMac, String btRcvMac, Context context){
-		List<ImageModel> toSend = new ArrayList<>();
+	private void checkAndSendImages(String username, final String rcvMac, String btRcvMac, final Context context){
+		final List<ImageModel> toSend = new ArrayList<>();
 		for (ImageModel i : ListingSingleton.getInstance().getImages().values()){
 			for (String p : i.getPeople()){
 				if (p.equals(username)){
@@ -312,6 +315,10 @@ public class BluedirectActivity extends Activity implements ChannelListener, Dev
 
 		if (!BluedirectActivity.fallback)
 			BluedirectAPI.sendToClient(intToBytes(toSend.size()), rcvMac, btRcvMac, Packet.TYPE.FILE_COUNT,context);
+		else{
+			FBSender.queuePacket(new Packet(Packet.TYPE.FB_COUNT,intToBytes(toSend.size()),rcvMac,Configuration.getFallbackId((Activity)context),null,null),null);
+		}
+
 
 		for (ImageModel i : toSend){
 			sendFile(i, rcvMac,btRcvMac,context);
@@ -326,22 +333,21 @@ public class BluedirectActivity extends Activity implements ChannelListener, Dev
 					GalleryActivity.progressDialog.setMessage("Receiving " + val + " photos of you");
 				}
 			});
-
 		}
 	}
 
-	private static void sendFile(final ImageModel i, final String rcvMac, String btRcvMac, final Context context){
-		File file = new File(Environment.getExternalStorageDirectory() + File.separator + "Hyrax" + File.separator + i.getPhotoName() + File.separator + i.getPhotoName() + ".jpg");
+	private void sendFile(ImageModel img, final String rcvMac, String btRcvMac, final Context context){
+		File file = new File(Environment.getExternalStorageDirectory() + File.separator + "Hyrax" + File.separator + img.getPhotoName() + File.separator + img .getPhotoName() + ".jpg");
 		if (!BluedirectActivity.fallback)
-			Sender.queuePacket(new Packet(Packet.TYPE.FILE, ImageToBytes(i, file), rcvMac, WiFiDirectBroadcastReceiver.MAC, btRcvMac, Configuration.getBluetoothSelfMac(context)));
+			Sender.queuePacket(new Packet(Packet.TYPE.FILE, ImageToBytes(img, file), rcvMac, WiFiDirectBroadcastReceiver.MAC, btRcvMac, Configuration.getBluetoothSelfMac(context)));
 		else {
 			try {
-				FileSender.sendFile(file,Configuration.getServerURL(context) + "upload", context);
+				FileSender.sendFile(file,Configuration.getServerURL(context) + "upload", context, img);
 				FileSender.setOnFileReceivedListener(new FileSender.onFileReceivedListener() {
 					@Override
-					public void onFileReceived(NetworkResponse response) {
-						String id = response.data.toString();
-						GCMSender.sendPacket(new Packet(Packet.TYPE.FB_DATA,(Configuration.getServerURL(context) + "images/" + id).getBytes(), rcvMac, Configuration.getFallbackId((Activity)context),null,null),i);
+					public void onFileReceived(NetworkResponse response, ImageModel image) {
+						final String id = new String(response.data);
+						FBSender.queuePacket(new Packet(Packet.TYPE.FB_DATA,(Configuration.getServerURL(context) + "images/" + id).getBytes(), rcvMac, Configuration.getFallbackId((Activity)context),null,null),image);
 					}
 				});
 			} catch (IOException e) {
@@ -582,6 +588,80 @@ public class BluedirectActivity extends Activity implements ChannelListener, Dev
 								"Connect abort request failed. Reason Code: " + reasonCode, Toast.LENGTH_SHORT).show();
 					}
 				});
+			}
+		}
+
+	}
+
+	class DownloadFileFromURL extends AsyncTask<Void, String, String> {
+
+		File mFile;
+		String mURL;
+		ImageModel i;
+
+		public DownloadFileFromURL(File mFile, String mURL, ImageModel i){
+			this.mFile = mFile;
+			this.mURL = mURL;
+			this.i = i;
+		}
+
+		/**
+		 * Downloading file in background thread
+		 * */
+		@Override
+		protected String doInBackground(Void... voids) {
+			int count;
+			try {
+				URL url = new URL(mURL);
+				URLConnection conection = url.openConnection();
+				conection.connect();
+				// this will be useful so that you can show a tipical 0-100%           progress bar
+				int lenghtOfFile = conection.getContentLength();
+
+				// download the file
+				InputStream input = new BufferedInputStream(url.openStream(), 8192);
+
+				mFile.getParentFile().mkdirs();
+
+				// Output stream
+				OutputStream output = new FileOutputStream(mFile);
+
+				byte data[] = new byte[1024];
+
+				long total = 0;
+
+				while ((count = input.read(data)) != -1) {
+					total += count;
+					// publishing the progress....
+					// After this onProgressUpdate will be called
+
+					// writing data to file
+					output.write(data, 0, count);
+				}
+
+				// flushing output
+				output.flush();
+
+				// closing streams
+				output.close();
+				input.close();
+
+				ImageModel.writeToFile(ListingSingleton.listing,i);
+				return mFile.getAbsolutePath();
+			} catch (Exception e) {
+				Log.e("Error: ", e.getMessage());
+			}
+
+			return null;
+		}
+
+		@Override
+		protected void onPostExecute(String s){
+			totalToReceive--;
+			if (totalToReceive == 0) GalleryActivity.progressDialog.dismiss();
+			else updateProgressDialog(totalToReceive);
+			if (s != null && GalleryActivity.isVisible()){
+				GalleryActivity.updateGallery(new File(s));
 			}
 		}
 

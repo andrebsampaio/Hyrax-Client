@@ -61,8 +61,6 @@ public class Sender implements Runnable {
 				packetSender.sendPacket(bundle.getAddress(), Configuration.RECEIVE_PORT, p);
 			} else if (bundle.getMethod().equals(Packet.METHOD.BT)) {
 				BluedirectActivity.btService.write(p.serialize());
-			} else {
-				GCMSender.sendPacket(p,null);
 			}
 
 		}

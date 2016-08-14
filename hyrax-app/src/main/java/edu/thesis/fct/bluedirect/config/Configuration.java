@@ -40,7 +40,7 @@ public class Configuration {
     }
 
 	public static String getFallbackId(Activity context){
-		SharedPreferences sharedPref = context.getPreferences(Context.MODE_PRIVATE);
+		SharedPreferences sharedPref = context.getSharedPreferences("MyPref", context.MODE_PRIVATE);
 		return sharedPref.getString("instance_token",null);
 	}
 

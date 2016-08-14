@@ -1,7 +1,9 @@
 package edu.thesis.fct.client;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
@@ -81,16 +83,14 @@ public class ImageModel {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        PrintWriter writer = null;
-        try {
-            writer = new PrintWriter(f, "UTF-8");
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+        try(FileWriter fw = new FileWriter(f, true);
+            BufferedWriter bw = new BufferedWriter(fw);
+            PrintWriter out = new PrintWriter(bw))
+        {
+            out.println(this.toString());
+        } catch (IOException e) {
+            //exception handling left as an exercise for the reader
         }
-        writer.println(this.toString());
-        writer.close();
     }
 
     public static void writeToFile(File f, ImageModel i){
@@ -100,16 +100,14 @@ public class ImageModel {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        PrintWriter writer = null;
-        try {
-            writer = new PrintWriter(f, "UTF-8");
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+        try(FileWriter fw = new FileWriter(f, true);
+            BufferedWriter bw = new BufferedWriter(fw);
+            PrintWriter out = new PrintWriter(bw))
+        {
+            out.println(i.toString());
+        } catch (IOException e) {
+            //exception handling left as an exercise for the reader
         }
-        writer.println(i.toString());
-        writer.close();
     }
 
 

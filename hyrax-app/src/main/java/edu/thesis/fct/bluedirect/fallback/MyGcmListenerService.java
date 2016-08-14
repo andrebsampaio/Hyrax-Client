@@ -16,6 +16,8 @@ import com.google.android.gms.gcm.GcmListenerService;
 
 import java.nio.ByteBuffer;
 
+import edu.thesis.fct.bluedirect.BluedirectActivity;
+import edu.thesis.fct.bluedirect.config.Configuration;
 import edu.thesis.fct.bluedirect.router.Packet;
 import edu.thesis.fct.bluedirect.router.Receiver;
 import edu.thesis.fct.bluedirect.router.Sender;
@@ -46,12 +48,15 @@ public class MyGcmListenerService extends GcmListenerService {
         Packet.TYPE type = Packet.TYPE.valueOf(data.getString("type"));
         String id = data.getString("my_id");
         String info = data.getString("image_info");
+        System.out.println(info);
 
         if (type.equals(Packet.TYPE.FB_QUERY)){
             Receiver.packetQueue.add(new Packet(type,data.getString("message").getBytes(), null, id,null,null));
-        } else {
+        } else if(type.equals(Packet.TYPE.FB_DATA)) {
             byte [] r = dataMerge(info, data.getString("message"));
             Receiver.packetQueue.add(new Packet(type,r, null, id,null,null));
+        } else if (type.equals(Packet.TYPE.FB_COUNT)){
+            Receiver.packetQueue.add(new Packet(type, data.getString("message").getBytes(), null, id,null,null));
         }
 
 

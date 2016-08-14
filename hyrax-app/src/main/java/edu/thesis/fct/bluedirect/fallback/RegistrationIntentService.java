@@ -28,7 +28,7 @@ public class RegistrationIntentService extends IntentService {
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        SharedPreferences sharedPreferences = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
 
         try {
             // [START register_for_gcm]
@@ -49,11 +49,12 @@ public class RegistrationIntentService extends IntentService {
             // Subscribe to topic channels
             subscribeTopics(token);
 
-            sharedPreferences.edit().putString("instance_token", token).apply();
             // You should store a boolean that indicates whether the generated token has been
             // sent to your server. If the boolean is false, send the token to your server,
             // otherwise your server should have already received the token.
             sharedPreferences.edit().putBoolean(QuickstartPreferences.SENT_TOKEN_TO_SERVER, true).apply();
+
+            sharedPreferences.edit().putString("instance_token", token).commit();
             // [END register_for_gcm]
         } catch (Exception e) {
             Log.d(TAG, "Failed to complete token refresh", e);

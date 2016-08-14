@@ -21,6 +21,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 
+import edu.thesis.fct.client.ImageModel;
 import edu.thesis.fct.client.MultipartRequest;
 import edu.thesis.fct.client.MySingleton;
 
@@ -32,7 +33,7 @@ public class FileSender {
     final static String lineEnd = "\r\n";
     final static String twoHyphens = "--";
     final static String boundary = "*****";
-    final String mimeType = "multipart/form-data;boundary=" + boundary;
+    final static String mimeType = "multipart/form-data;boundary=" + boundary;
 
     static onFileReceivedListener listener;
 
@@ -40,7 +41,7 @@ public class FileSender {
         listener = l;
     }
 
-    public static void sendFile(File f, String url, Context context) throws IOException {
+    public static void sendFile(File f, String url, Context context, final ImageModel img) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(bos);
 
@@ -51,7 +52,7 @@ public class FileSender {
         MultipartRequest multipartRequest = new MultipartRequest(url, null, mimeType, multipartBody, new Response.Listener<NetworkResponse>() {
             @Override
             public void onResponse(NetworkResponse response) {
-                listener.onFileReceived(response);
+                listener.onFileReceived(response, img);
             }
         }, new Response.ErrorListener() {
             @Override
@@ -92,7 +93,7 @@ public class FileSender {
     }
 
     public interface onFileReceivedListener{
-        public abstract void onFileReceived(NetworkResponse response);
+        public abstract void onFileReceived(NetworkResponse response, ImageModel img);
     }
 
 
