@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.MediaStore;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayoutManager;
@@ -55,6 +56,7 @@ import java.util.zip.ZipOutputStream;
 public class GalleryActivity extends AppCompatActivity {
 
     private static final long MAX_FILE_SIZE = Long.MAX_VALUE ;
+    private static final int REQUEST_CAMERA = 1;
     List<Object> ids = new ArrayList<>();
     RecyclerView recyclerView;
     Activity activity;
@@ -211,7 +213,7 @@ public class GalleryActivity extends AppCompatActivity {
                     editor.putString("username", user);
                     editor.commit();
                     progressDialog.dismiss();
-                    openCamera();
+                    openCameraReg();
                 }
             }, new Response.ErrorListener() {
                 @Override
@@ -230,6 +232,12 @@ public class GalleryActivity extends AppCompatActivity {
         }
 
 
+    }
+
+    private void openCameraReg(){
+        Intent intent = new Intent(
+                MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
+        startActivityForResult(intent, REQUEST_CAMERA);
     }
 
     public byte[] read(File file) throws Exception {
