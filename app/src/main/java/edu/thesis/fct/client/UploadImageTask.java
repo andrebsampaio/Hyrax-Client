@@ -21,8 +21,7 @@ import java.net.URL;
  * Created by abs on 07-03-2016.
  */
 public class UploadImageTask extends AsyncTask<Object, Void, Void> {
-
-    HttpURLConnection httpUrlConnection;
+    
     final static String crlf = "\r\n";
     final static String twoHyphens = "--";
     final static String boundary = "*****";

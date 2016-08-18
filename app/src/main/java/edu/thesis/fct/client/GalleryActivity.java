@@ -133,9 +133,14 @@ public class GalleryActivity extends AppCompatActivity {
             mAdapter = new GalleryAdapter(activity,null,takenPhotos,iu);
         } else{
             iu = new InstrumentationUtils(this);
-            mAdapter = new GalleryAdapter(activity, imagesURL,null,iu);
-            iu.startTest();
-            searchMyFace(searchURL);
+            if (imagesURL != null){
+                mAdapter = new GalleryAdapter(activity, imagesURL,null,iu);
+                iu.startTest();
+                searchMyFace(searchURL);
+            } else {
+                Toast.makeText(this,"An error ocurred", Toast.LENGTH_LONG);
+            }
+
         }
 
         recyclerView.setAdapter(mAdapter);

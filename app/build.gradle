@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId "edu.thesis.fct.hyrax"
-        minSdkVersion 19
+        minSdkVersion 14
         targetSdkVersion 22
         versionCode 1
         versionName "1.0"
@@ -35,9 +35,6 @@ dependencies {
     compile 'com.mcxiaoke.volley:library-aar:1.0.0'
     compile 'com.android.support:recyclerview-v7:23.0.1'
     compile 'com.github.bumptech.glide:glide:3.7.0'
-    compile 'org.bytedeco:javacv:1.1'
-    compile 'org.bytedeco.javacpp-presets:opencv:1.1'
-    compile 'com.google.android.gms:play-services-vision:8.1.0'
     compile 'com.github.chrisbanes:PhotoView:1.2.6'
-    compile 'com.github.andrebsampaio:CameraModule:master-SNAPSHOT'
+    compile 'com.github.andrebsampaio:CameraModule:3c32465'
 }

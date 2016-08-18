@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.ContentObserver;
 import android.database.Cursor;
+import android.graphics.Camera;
 import android.net.Uri;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
@@ -22,6 +23,7 @@ import android.view.Menu;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.android.volley.Request;
@@ -152,8 +154,21 @@ public class LoginActivity extends AppCompatActivity {
             public void photoSaved(String s, String s1) {
                 if(CameraActivity.autoUploadStatus){
                     Log.d("UPLOAD", "PROCESSING IMAGE AND UPLOAD");
-                    UploadAsync sync = new UploadAsync((Activity)context,new File(s));
-                    new Thread(sync).start();
+                    new UploadImageTask().execute(getCallingActivity(), new File(s));
+                }
+            }
+        });
+
+        CameraActivity.setOnAutoUploadClick(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                TextView indicator = (TextView)v.findViewById(R.id.uploadIndicator);
+                if (indicator.getText().equals("AUTO")){
+                    CameraActivity.autoUploadStatus = false;
+                    indicator.setText("OFF");
+                } else {
+                    CameraActivity.autoUploadStatus = true;
+                    indicator.setText("AUTO");
                 }
             }
         });
@@ -180,7 +195,7 @@ public class LoginActivity extends AppCompatActivity {
             this.act = act;
         }
         public void run(){
-            new UploadImageTask().execute(act, name);
+
         }
     }
 
@@ -258,6 +273,7 @@ public class LoginActivity extends AppCompatActivity {
         intent.putExtra(CameraActivity.PATH, Environment.getExternalStorageDirectory().getPath());
         intent.putExtra(CameraActivity.OPEN_PHOTO_PREVIEW, false);
         intent.putExtra(CameraActivity.USE_FRONT_CAMERA, false);
+        intent.putExtra(CameraActivity.UPLOAD, false);
         context.startActivity(intent);
     }
 
