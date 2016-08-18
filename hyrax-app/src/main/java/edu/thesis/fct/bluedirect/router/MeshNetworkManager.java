@@ -127,12 +127,10 @@ public class MeshNetworkManager {
 				IPBundle tmp = null;
 				for (AllEncompasingP2PClient client : MeshNetworkManager.routingTable.values()) {
 					if (client.getBridge().getGID() != self.getGroupID()) {
-						tmp = new IPBundle(Packet.METHOD.WD, client.getIp());
-						break;
+						return new IPBundle(Packet.METHOD.WD, client.getIp());
 					}
 				}
-				if (tmp == null)
-					return new IPBundle(Packet.METHOD.WD, "0.0.0.0"); // No other groups - drop packet
+				return new IPBundle(Packet.METHOD.WD, "0.0.0.0"); // No other groups - drop packet
 
 			}
 			return new IPBundle(Packet.METHOD.WD, ip);

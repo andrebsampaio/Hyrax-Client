@@ -143,6 +143,7 @@ public class Receiver implements Runnable {
 						//if it's an update, add to the table
 						String emb_mac = Packet.getMacBytesAsString(p.getData(), 0);
 						String emb_bt_mac = Packet.getMacBytesAsString(p.getData(), 6);
+						//MISSING BRIDGE DATA
 						MeshNetworkManager.newClient(new AllEncompasingP2PClient(emb_bt_mac, emb_mac, p.getSenderIP(), p.getMac(), MeshNetworkManager
 								.getSelf().getMac(), MeshNetworkManager.getSelf().getGroupID(),null));
 
