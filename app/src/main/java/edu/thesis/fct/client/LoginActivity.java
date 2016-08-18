@@ -2,16 +2,22 @@ package edu.thesis.fct.client;
 
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.FeatureInfo;
+import android.content.pm.PackageManager;
 import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.Uri;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.text.Editable;
@@ -20,6 +26,7 @@ import android.view.Menu;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.android.volley.Request;
@@ -30,6 +37,9 @@ import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.RequestFuture;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.yalantis.cameramodule.ManagerInitializer;
+import com.yalantis.cameramodule.activity.CameraActivity;
+import com.yalantis.cameramodule.interfaces.PhotoSavedListener;
 
 import org.json.JSONObject;
 
@@ -119,6 +129,49 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
 
+        CameraActivity.setOnGalleryClick(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent myIntent = new Intent(context, GalleryActivity.class);
+                Bundle b=new Bundle();
+                b.putBoolean("isRegistration", false);
+                myIntent.putExtras(b);
+                startActivity(myIntent);
+            }
+        });
+
+        CameraActivity.addPhotoSavedListener(new PhotoSavedListener() {
+            @Override
+            public void photoSaved(String s, String s1) {
+                if(CameraActivity.autoUploadStatus){
+                    Log.d("UPLOAD", "PROCESSING IMAGE AND UPLOAD");
+                    String location = "location";
+                    String time = String.valueOf(System.currentTimeMillis());
+                    String uploadURL;
+                    NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
+                    Log.d("NIH", nih.getHost() + "");
+                    if (nih.getHost() != null){
+                        uploadURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/upload/";
+                        new UploadImageTask().execute(getCallingActivity(),uploadURL, location,time,new File(s));
+                    }
+                }
+            }
+        });
+
+        CameraActivity.setOnAutoUploadClick(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                TextView indicator = (TextView)v.findViewById(R.id.uploadIndicator);
+                if (indicator.getText().equals("AUTO")){
+                    CameraActivity.autoUploadStatus = false;
+                    indicator.setText("OFF");
+                } else {
+                    CameraActivity.autoUploadStatus = true;
+                    indicator.setText("AUTO");
+                }
+            }
+        });
+
         register.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if (isRemote) setLoginURL();
@@ -156,6 +209,44 @@ public class LoginActivity extends AppCompatActivity {
 
     }
 
+    private boolean checkWiFiDirect(SharedPreferences.Editor editor){
+        WifiManager wifiMan = (WifiManager) this
+                .getSystemService(Context.WIFI_SERVICE);
+        WifiInfo wifiInf = wifiMan.getConnectionInfo();
+        String macAddressWD = wifiInf.getMacAddress();
+        String macaddressBT = BluetoothAdapter.getDefaultAdapter().getAddress();
+        editor.putString("macwd", macAddressWD);
+        editor.putString("macbt", macaddressBT);
+        boolean supports = this.isWifiDirectSupported(this);
+        editor.putBoolean("haswd", supports);
+
+        editor.commit();
+
+        return supports;
+
+    }
+
+    private boolean isWifiDirectSupported(Context ctx) {
+        PackageManager pm = ctx.getPackageManager();
+        FeatureInfo[] features = pm.getSystemAvailableFeatures();
+        for (FeatureInfo info : features) {
+            if (info != null && info.name != null && info.name.equalsIgnoreCase("android.hardware.wifi.direct")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void openCamera(){
+        ManagerInitializer.i.init(context);
+        Intent intent = new Intent(context, CameraActivity.class);
+        intent.putExtra(CameraActivity.PATH, Environment.getExternalStorageDirectory().getPath());
+        intent.putExtra(CameraActivity.OPEN_PHOTO_PREVIEW, false);
+        intent.putExtra(CameraActivity.USE_FRONT_CAMERA, false);
+        intent.putExtra(CameraActivity.UPLOAD, false);
+        context.startActivity(intent);
+    }
+
     private void checkUsername(final String text, String url, final boolean isLogin) {
         final ProgressDialog progressDialog = new ProgressDialog(this);
         if (loginURL == null){
@@ -167,12 +258,12 @@ public class LoginActivity extends AppCompatActivity {
                         public void onResponse(String response) {
                             if (Boolean.valueOf(response)){
                                 if (isLogin){
-                                    Intent myIntent = new Intent(context, MainActivity.class);
                                     SharedPreferences pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
                                     SharedPreferences.Editor editor = pref.edit();
                                     editor.putString("username", text);
                                     editor.commit();
-                                    startActivity(myIntent);
+                                    checkWiFiDirect(editor);
+                                    openCamera();
                                 } else {
                                     Toast.makeText(context, "User already exists", Toast.LENGTH_LONG ).show();
                                 }
@@ -181,7 +272,7 @@ public class LoginActivity extends AppCompatActivity {
                                     Toast.makeText(context, "User does not exist", Toast.LENGTH_LONG ).show();
                                 } else {
                                     user = text;
-                                    openCamera();
+                                    openCameraReg();
                                 }
                             }
 
@@ -208,7 +299,7 @@ public class LoginActivity extends AppCompatActivity {
 
     }
 
-    private void openCamera(){
+    private void openCameraReg(){
         Intent intent = new Intent(
                 MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
         startActivityForResult(intent, REQUEST_CAMERA);

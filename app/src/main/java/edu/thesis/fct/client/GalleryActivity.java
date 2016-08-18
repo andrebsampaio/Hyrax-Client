@@ -22,6 +22,8 @@ import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.NetworkResponse;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
+import com.yalantis.cameramodule.ManagerInitializer;
+import com.yalantis.cameramodule.activity.CameraActivity;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -176,13 +178,12 @@ public class GalleryActivity extends AppCompatActivity {
                 public void onResponse(NetworkResponse response) {
                     Toast.makeText(getParent(), "Processing done, enjoy!", Toast.LENGTH_LONG).show();
                     System.out.println(new String (response.data));
-                    Intent myIntent = new Intent(getParent(), MainActivity.class);
                     pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
                     SharedPreferences.Editor editor = pref.edit();
                     editor.putString("username", user);
                     editor.commit();
                     progressDialog.dismiss();
-                    startActivity(myIntent);
+                    openCamera();
                 }
             }, new Response.ErrorListener() {
                 @Override
@@ -201,6 +202,16 @@ public class GalleryActivity extends AppCompatActivity {
         }
 
 
+    }
+
+    private void openCamera(){
+        ManagerInitializer.i.init(activity);
+        Intent intent = new Intent(activity, CameraActivity.class);
+        intent.putExtra(CameraActivity.PATH, Environment.getExternalStorageDirectory().getPath());
+        intent.putExtra(CameraActivity.OPEN_PHOTO_PREVIEW, false);
+        intent.putExtra(CameraActivity.USE_FRONT_CAMERA, false);
+        intent.putExtra(CameraActivity.UPLOAD,false);
+        activity.startActivity(intent);
     }
 
     public byte[] read(File file) throws Exception {
