@@ -27,18 +27,11 @@ public class UploadImageTask extends AsyncTask<Object, Void, Void> {
     final static String twoHyphens = "--";
     final static String boundary = "*****";
 
-    private File [] processImage(Context context, File name, int cameraLens){
-        FaceProcessing f = new FaceProcessing(context);
-        //f.detectFaces(name, cameraLens);
-        return f.detectFaces(name, cameraLens);
-    }
-
     protected Void doInBackground(Object... params) {
 
         String details = "details";
         Context context = (Context) params[0];
         File name = (File) params[1];
-        int cameraLens = (int)params[2];
 
         //File [] faces = processImage(context, name, cameraLens);
 

@@ -30,6 +30,8 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.StringRequest;
+import com.yalantis.cameramodule.ManagerInitializer;
+import com.yalantis.cameramodule.activity.CameraActivity;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -175,6 +177,15 @@ public class GalleryActivity extends AppCompatActivity {
         }
     }
 
+    private void openCamera(){
+        ManagerInitializer.i.init(activity);
+        Intent intent = new Intent(activity, CameraActivity.class);
+        intent.putExtra(CameraActivity.PATH, Environment.getExternalStorageDirectory().getPath());
+        intent.putExtra(CameraActivity.OPEN_PHOTO_PREVIEW, false);
+        intent.putExtra(CameraActivity.USE_FRONT_CAMERA, false);
+        activity.startActivity(intent);
+    }
+
     private void sendRegistration(String url) {
         List<File> images = mAdapter.getSelectedImages();
         File zippedImages = zip(images, Environment.getExternalStorageDirectory() + File.separator +  user + ".zip");
@@ -190,13 +201,12 @@ public class GalleryActivity extends AppCompatActivity {
                 public void onResponse(NetworkResponse response) {
                     Toast.makeText(getParent(), "Processing done, enjoy!", Toast.LENGTH_LONG).show();
                     System.out.println(new String (response.data));
-                    Intent myIntent = new Intent(getParent(), MainActivity.class);
                     pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
                     SharedPreferences.Editor editor = pref.edit();
                     editor.putString("username", user);
                     editor.commit();
                     progressDialog.dismiss();
-                    startActivity(myIntent);
+                    openCamera();
                 }
             }, new Response.ErrorListener() {
                 @Override

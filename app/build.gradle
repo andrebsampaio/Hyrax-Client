@@ -39,4 +39,5 @@ dependencies {
     compile 'org.bytedeco.javacpp-presets:opencv:1.1'
     compile 'com.google.android.gms:play-services-vision:8.1.0'
     compile 'com.github.chrisbanes:PhotoView:1.2.6'
+    compile 'com.github.andrebsampaio:CameraModule:master-SNAPSHOT'
 }

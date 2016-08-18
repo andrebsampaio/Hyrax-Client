@@ -1,5 +1,6 @@
 package edu.thesis.fct.client;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -12,6 +13,7 @@ import android.net.Uri;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.text.Editable;
@@ -30,6 +32,9 @@ import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.RequestFuture;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.yalantis.cameramodule.ManagerInitializer;
+import com.yalantis.cameramodule.activity.CameraActivity;
+import com.yalantis.cameramodule.interfaces.PhotoSavedListener;
 
 import org.json.JSONObject;
 
@@ -131,12 +136,52 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
 
+        CameraActivity.setOnGalleryClick(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent myIntent = new Intent(context, GalleryActivity.class);
+                Bundle b=new Bundle();
+                b.putBoolean("isRegistration", false);
+                myIntent.putExtras(b);
+                startActivity(myIntent);
+            }
+        });
+
+        CameraActivity.addPhotoSavedListener(new PhotoSavedListener() {
+            @Override
+            public void photoSaved(String s, String s1) {
+                if(CameraActivity.autoUploadStatus){
+                    Log.d("UPLOAD", "PROCESSING IMAGE AND UPLOAD");
+                    UploadAsync sync = new UploadAsync((Activity)context,new File(s));
+                    new Thread(sync).start();
+                }
+            }
+        });
+
         this.getApplicationContext()
                 .getContentResolver()
                 .registerContentObserver(
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false,
                         photoObserver);
         Log.d("INSTANT", "registered content observer");
+    }
+
+    private void openCameraReg(){
+        Intent intent = new Intent(
+                MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
+        startActivityForResult(intent, REQUEST_CAMERA);
+    }
+
+    class UploadAsync implements Runnable {
+        File name;
+        Activity act;
+        UploadAsync(Activity act, File name){
+            this.name = name;
+            this.act = act;
+        }
+        public void run(){
+            new UploadImageTask().execute(act, name);
+        }
     }
 
     private void setLoginURL(){
@@ -167,12 +212,11 @@ public class LoginActivity extends AppCompatActivity {
                         public void onResponse(String response) {
                             if (Boolean.valueOf(response)){
                                 if (isLogin){
-                                    Intent myIntent = new Intent(context, MainActivity.class);
                                     SharedPreferences pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
                                     SharedPreferences.Editor editor = pref.edit();
                                     editor.putString("username", text);
                                     editor.commit();
-                                    startActivity(myIntent);
+                                    openCamera();
                                 } else {
                                     Toast.makeText(context, "User already exists", Toast.LENGTH_LONG ).show();
                                 }
@@ -181,7 +225,7 @@ public class LoginActivity extends AppCompatActivity {
                                     Toast.makeText(context, "User does not exist", Toast.LENGTH_LONG ).show();
                                 } else {
                                     user = text;
-                                    openCamera();
+                                    openCameraReg();
                                 }
                             }
 
@@ -209,9 +253,12 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void openCamera(){
-        Intent intent = new Intent(
-                MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
-        startActivityForResult(intent, REQUEST_CAMERA);
+        ManagerInitializer.i.init(context);
+        Intent intent = new Intent(context, CameraActivity.class);
+        intent.putExtra(CameraActivity.PATH, Environment.getExternalStorageDirectory().getPath());
+        intent.putExtra(CameraActivity.OPEN_PHOTO_PREVIEW, false);
+        intent.putExtra(CameraActivity.USE_FRONT_CAMERA, false);
+        context.startActivity(intent);
     }
 
     @Override
