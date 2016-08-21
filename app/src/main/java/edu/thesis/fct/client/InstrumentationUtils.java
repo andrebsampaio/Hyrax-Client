@@ -1,5 +1,6 @@
 package edu.thesis.fct.client;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -32,7 +33,7 @@ public class InstrumentationUtils {
     int transferProtocol;
     int networkType;
 
-    float battery;
+    double battery;
     long totalBytesRx;
     long totalBytesTx;
     long totalPacketsRx;
@@ -83,15 +84,17 @@ public class InstrumentationUtils {
         networkType = type;
     }
 
-    private float currentBattery(){
+    private double currentBattery(){
         IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
         Intent batteryStatus = context.registerReceiver(null, ifilter);
 
         int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
         int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
 
-        return level / (float)scale;
+        return (level*100) / (double)scale;
     }
+
+
 
     private long getBytesReceived(){
         return TrafficStats.getUidRxBytes(appId);
@@ -109,7 +112,7 @@ public class InstrumentationUtils {
         return TrafficStats.getUidTxPackets(appId);
     }
 
-    private void storeToFile(float battery, long bytesRx, long bytesTx, long packetsRx, long packetsTx, long time){
+    private void storeToFile(double battery, long bytesRx, long bytesTx, long packetsRx, long packetsTx, long time){
         PrintWriter writer = null;
         try {
             File file = new File(Environment.getExternalStorageDirectory().getPath() + File.separator + "HyraxTests" + File.separator + testSession + ".txt" );
