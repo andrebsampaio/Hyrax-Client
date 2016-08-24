@@ -104,9 +104,9 @@ public class InstrumentationUtils {
             }
         } else {
             if (actors == PACKETS_C2C){
-                packetsC2CTx = getPacketsSent() - tmpPacketsTx;
+                packetsC2CTx += getPacketsSent() - tmpPacketsTx;
             } else if (actors == PACKETS_C2S){
-                packetsC2STx = getPacketsSent() - tmpPacketsTx;
+                packetsC2STx += getPacketsSent() - tmpPacketsTx;
             }
         }
     }
@@ -120,9 +120,9 @@ public class InstrumentationUtils {
             }
         } else {
             if (actors == BYTES_C2C){
-                bytesC2CTx = getBytesSent() - tmpBytesTx;
+                bytesC2CTx += getBytesSent() - tmpBytesTx;
             } else if (actors == BYTES_C2S){
-                bytesC2STx = getBytesSent() - tmpBytesTx;
+                bytesC2STx += getBytesSent() - tmpBytesTx;
             }
         }
     }

@@ -263,6 +263,8 @@ public class LoginActivity extends AppCompatActivity {
                                     editor.putString("username", text);
                                     editor.commit();
                                     checkWiFiDirect(editor);
+                                    Intent intent = new Intent(context, BluetoothServerService.class);
+                                    startService(intent);
                                     openCamera();
                                 } else {
                                     Toast.makeText(context, "User already exists", Toast.LENGTH_LONG ).show();
