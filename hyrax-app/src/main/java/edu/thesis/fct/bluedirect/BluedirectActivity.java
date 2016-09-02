@@ -260,10 +260,10 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 		int modelsize = byteToInt(size);
 
 		List<byte[]> res = new ArrayList<>();
-		int offset = 2;
+		int offset = 8;
 		res.add(Arrays.copyOfRange(data,offset,usersize + offset));
 		offset += usersize;
-		res.add(Arrays.copyOfRange(data,offset,modelsize));
+		res.add(Arrays.copyOfRange(data,offset,data.length));
 
 		return res;
 
@@ -345,6 +345,7 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 		if (template != null){
 			try {
 				String modelpath = FaceRecognitionAsync.RECOG_PATH + username + ".gz";
+				new File(modelpath).getParentFile().mkdirs();
 				IOUtils.copy(new ByteArrayInputStream(template), new FileOutputStream(modelpath));
 				FaceProcessing.loadEngineFromFile(modelpath);
 			} catch (FileNotFoundException e) {

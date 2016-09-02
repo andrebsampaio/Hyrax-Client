@@ -8,7 +8,10 @@ import org.apache.commons.io.FileUtils;
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.MatVector;
+import org.bytedeco.javacpp.opencv_face;
 import org.bytedeco.javacpp.opencv_face.FaceRecognizer;
+import org.bytedeco.javacpp.opencv_face.BasicFaceRecognizer;
+
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -221,17 +224,18 @@ public class FaceProcessing {
     }
 
     public static FaceRecognizer loadEngineFromFile(String path){
-        FaceRecognizer faceRecognizer = createFisherFaceRecognizer();
+        BasicFaceRecognizer faceRecognizer = createFisherFaceRecognizer();
         String storePath;
         if (path.contains("my_template")){
             storePath = FaceRecognitionAsync.SAVE_PATH_TMP;
         } else {
-            storePath = FaceRecognitionAsync.RECOG_PATH + new File(path).getName() + ".yml";
+            storePath = FaceRecognitionAsync.RECOG_PATH + new File(path).getName().split("\\.")[0] + ".yml";
         }
         gunzipIt(path, storePath);
         faceRecognizer.load(storePath);
         RecognitionEngineHolder.getInstance().setEngine(faceRecognizer);
         new File(storePath).delete();
+        trainSize = faceRecognizer.getMean().size();
         return faceRecognizer;
     }
 

@@ -151,6 +151,7 @@ public class BluedirectAPI {
             FileInputStream fis = new FileInputStream(template);
             ByteArrayOutputStream bao = new ByteArrayOutputStream();
             IOUtils.copy(fis,bao);
+            fis.close();
             byte [] data = bao.toByteArray();
             byte [] u = user.getBytes();
             byte [] tmp = new byte [8 + u.length + data.length ];
