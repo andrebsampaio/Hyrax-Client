@@ -2,6 +2,8 @@ package edu.thesis.fct.bluedirect.router;
 
 import android.widget.Toast;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import edu.thesis.fct.bluedirect.BluedirectActivity;
@@ -24,6 +26,8 @@ public class Receiver implements Runnable {
 	public static boolean running = false;
 
 	private static onPacketReceivedListener listener;
+
+	public static List<Integer> seenIDs = new ArrayList<>();
 
 	public static void setListener(onPacketReceivedListener toAdd){
 		listener = toAdd;
@@ -111,7 +115,7 @@ public class Receiver implements Runnable {
 						macs[i] = wMac[i - 6];
 					}
 
-					Packet update = new Packet(Packet.TYPE.UPDATE, macs, c.getMac(),
+					Packet update = new Packet(Packet.NEW_ID,Packet.TYPE.UPDATE, macs, c.getMac(),
 							MeshNetworkManager.getSelf().getMac(), p.getBtSMac(), Configuration.getBluetoothSelfMac(activity));
 					Sender.queuePacket(update);
 				}
@@ -122,7 +126,7 @@ public class Receiver implements Runnable {
 				// Send routing table back as HELLO_ACK
 				byte[] rtable = MeshNetworkManager.serializeRoutingTable();
 
-				Packet ack = new Packet(Packet.TYPE.HELLO_ACK, rtable, p.getSenderMac(), MeshNetworkManager.getSelf()
+				Packet ack = new Packet(Packet.NEW_ID,Packet.TYPE.HELLO_ACK, rtable, p.getSenderMac(), MeshNetworkManager.getSelf()
 						.getMac(), p.getBtSMac(), Configuration.getBluetoothSelfMac(activity));
 				Sender.queuePacket(ack);
 				somebodyJoined(p.getSenderMac());

@@ -10,7 +10,7 @@ import org.bytedeco.javacpp.opencv_face;
  */
 public class RecognitionEngineHolder {
 
-   private opencv_face.FaceRecognizer engine;
+    private opencv_face.FaceRecognizer engine;
 
     public opencv_face.FaceRecognizer getEngine(){return engine;}
 

@@ -1,5 +1,9 @@
 package edu.thesis.fct.bluedirect.router;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 import edu.thesis.fct.bluedirect.config.Configuration;
@@ -195,6 +199,22 @@ public class MeshNetworkManager {
 
 		return getIPForClient(c);
 
+	}
+
+	public static AllEncompasingP2PClient getRandomClient(){
+		Random random    = new Random();
+		List<String> keys      = new ArrayList<String>(routingTable.keySet());
+		String       randomKey = keys.get( random.nextInt(keys.size()) );
+		return routingTable.get(randomKey);
+	}
+
+	public static float calculateProbability(float pbias, Map<String, Boolean> visited){
+		int count = 0;
+		for (Map.Entry e : visited.entrySet()){
+			if (!(boolean)e.getValue()) count++;
+		}
+
+		return (pbias/count)+((1-pbias)/visited.size());
 	}
 
 }

@@ -51,12 +51,12 @@ public class MyGcmListenerService extends GcmListenerService {
         System.out.println(info);
 
         if (type.equals(Packet.TYPE.FB_QUERY)){
-            Receiver.packetQueue.add(new Packet(type,data.getString("message").getBytes(), null, id,null,null));
+            Receiver.packetQueue.add(new Packet(Packet.NEW_ID,type,data.getString("message").getBytes(), null, id,null,null));
         } else if(type.equals(Packet.TYPE.FB_DATA)) {
             byte [] r = dataMerge(info, data.getString("message"));
-            Receiver.packetQueue.add(new Packet(type,r, null, id,null,null));
+            Receiver.packetQueue.add(new Packet(Packet.NEW_ID,type,r, null, id,null,null));
         } else if (type.equals(Packet.TYPE.FB_COUNT)){
-            Receiver.packetQueue.add(new Packet(type, data.getString("message").getBytes(), null, id,null,null));
+            Receiver.packetQueue.add(new Packet(Packet.NEW_ID,type, data.getString("message").getBytes(), null, id,null,null));
         }
 
 

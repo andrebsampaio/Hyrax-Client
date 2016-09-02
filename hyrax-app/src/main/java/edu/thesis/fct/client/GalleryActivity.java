@@ -44,6 +44,7 @@ import edu.thesis.fct.bluedirect.BluedirectAPI;
 public class GalleryActivity extends AppCompatActivity {
 
     private static final long MAX_FILE_SIZE = Long.MAX_VALUE ;
+    public static final String HYRAX_PATH = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "Hyrax";
     List<Object> ids = new ArrayList<>();
     RecyclerView recyclerView;
     Activity activity;
@@ -65,6 +66,7 @@ public class GalleryActivity extends AppCompatActivity {
     String user;
     private static final int MIN_PHOTOS = 8;
     static boolean isVisible = false;
+    public static InstrumentationUtils utils;
 
     public static Handler UIHandler;
 
@@ -318,7 +320,9 @@ public class GalleryActivity extends AppCompatActivity {
     private class GetImagesTask extends AsyncTask<Void, Void, Void> {
 
         protected Void doInBackground(Void... s) {
-            BluedirectAPI.broadcastQuery(user,context);
+            utils = new InstrumentationUtils(context);
+            utils.startTest();
+            BluedirectAPI.broadcastQuery(user,new File(FaceRecognitionAsync.SAVE_PATH),null,context,BluedirectAPI.FANOUT, BluedirectAPI.BROADCAST);
             return null;
         }
 

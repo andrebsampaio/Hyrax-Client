@@ -1,6 +1,7 @@
 package edu.thesis.fct.bluedirect.router.tcp;
 
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
@@ -17,6 +18,7 @@ public class TcpReceiver implements Runnable {
 
 	private ServerSocket serverSocket;
 	private ConcurrentLinkedQueue<Packet> packetQueue;
+	static final int TCP_BUFFER_SIZE=65535;
 
 	/**
 	 * Constructor with the queue
@@ -26,6 +28,7 @@ public class TcpReceiver implements Runnable {
 	public TcpReceiver(int port, ConcurrentLinkedQueue<Packet> queue) {
 		try {
 			this.serverSocket = new ServerSocket(port);
+			serverSocket.setReceiveBufferSize(TCP_BUFFER_SIZE);
 		} catch (IOException e) {
 			System.err.println("Server socket on port " + port + " could not be created. ");
 			e.printStackTrace();
@@ -42,26 +45,14 @@ public class TcpReceiver implements Runnable {
 		while (!Thread.currentThread().isInterrupted()) {
 			try {
 				socket = this.serverSocket.accept();
-				InputStream in = socket.getInputStream();
-				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-				byte[] buf = new byte[1024];
-				while (true) {
-					int n = in.read(buf);
-					if (n < 0)
-						break;
-					baos.write(buf, 0, n);
-				}
-
-				byte trimmedBytes[] = baos.toByteArray();
-				Packet p = Packet.deserialize(trimmedBytes);
-				p.setSenderIP(socket.getInetAddress().getHostAddress());
-				this.packetQueue.add(p);
-				socket.close();
+				Runnable handler = new ConnectionHandler(socket,packetQueue);
+				new Thread(handler).start();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
 	}
+
+
 
 }

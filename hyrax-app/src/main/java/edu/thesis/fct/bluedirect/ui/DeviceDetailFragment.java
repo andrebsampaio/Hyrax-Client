@@ -119,7 +119,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 		this.getView().setVisibility(View.VISIBLE);
 
 		if (!info.isGroupOwner) {
-			Sender.queuePacket(new Packet(Packet.TYPE.HELLO, new byte[0], null, WiFiDirectBroadcastReceiver.MAC,null, Configuration.getBluetoothSelfMac(getActivity())));
+			Sender.queuePacket(new Packet(Packet.NEW_ID,Packet.TYPE.HELLO, new byte[0], null, WiFiDirectBroadcastReceiver.MAC,null, Configuration.getBluetoothSelfMac(getActivity())));
 		}
 
 		// hide the connect button

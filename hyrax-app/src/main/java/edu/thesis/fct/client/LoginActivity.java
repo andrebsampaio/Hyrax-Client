@@ -112,24 +112,10 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
 
-
         BluedirectAPI.setOnGroupJoinedListener(new MeshNetworkManager.onGroupJoinedListener() {
             @Override
             public void onGroupJoined() {
-
-                ((Activity) context).runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        progressDialog = ProgressDialog.show(context, "dialog title",
-                                "dialog message", true);
-                        progressDialog.setCancelable(false);
-                    }
-                });
-
-
-                loadImagesFromStorage();
-
-                loadCamera(context);
+                advanceFromLogin(context);
             }
         });
 
@@ -160,7 +146,6 @@ public class LoginActivity extends AppCompatActivity {
                     Toast.makeText(context, "Please insert a username", Toast.LENGTH_LONG ).show();
                 }  else {
                     saveUsername(name);
-
                     //checkUsername(name.toLowerCase(), loginURL, true);
 
                 }
@@ -187,6 +172,15 @@ public class LoginActivity extends AppCompatActivity {
         Log.d("INSTANT", "registered content observer");
     }
 
+    public static void advanceFromLogin(Context context){
+
+        new FaceRecognitionAsync(new File(Environment.getExternalStorageDirectory(), "HyraxTrain"),(Activity)context).execute(true);
+
+        loadImagesFromStorage();
+
+        loadCamera(context);
+    }
+
     private static void loadImagesFromStorage() {
         Thread t = new Thread() {
             public void run() {
@@ -208,14 +202,7 @@ public class LoginActivity extends AppCompatActivity {
 
     }
 
-    public static void proceedFromLogin(Context context){
-        loadImagesFromStorage();
-        loadCamera(context);
-    }
-
     private static void loadCamera(Context context){
-        new FaceRecognitionAsync(new File(Environment.getExternalStorageDirectory() + File.separator +"train"), (Activity) context).execute();
-
         ManagerInitializer.i.init(context);
         Intent intent = new Intent(context, CameraActivity.class);
         intent.putExtra(CameraActivity.PATH, Environment.getExternalStorageDirectory().getPath());

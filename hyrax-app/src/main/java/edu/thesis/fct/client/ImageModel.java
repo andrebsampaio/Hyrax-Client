@@ -1,24 +1,31 @@
 package edu.thesis.fct.client;
 
+import android.os.Environment;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.util.List;
 
 /**
  * Created by abs on 01-05-2016.
  */
-public class ImageModel {
+public class ImageModel implements Serializable {
+
+    static final long serialVersionUID = 42L;
 
     int id;
     String location;
     String time;
     String [] people;
     static final String SEPARATOR = ",";
+    public static final String PREFIX = Environment.getExternalStorageDirectory() + File.separator + "Hyrax" + File.separator;
+    public static final String SUFFIX = ".jpg";
 
     public ImageModel(int id, String location, String time, String [] people){
         this.id = id;

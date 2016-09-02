@@ -1,17 +1,12 @@
 package edu.thesis.fct.bluedirect.router;
 
-/**
- * The echo packet structure
- * @author Peter Henderson
- *
- */
+import java.util.Random;
+
+
 public class Packet {
 
-	/**
-	 * Different types of echo packets
-	 * @author Peter Henderson
-	 *
-	 */
+	public static final int NEW_ID = -1;
+
 	public enum TYPE {
 		HELLO, HELLO_ACK, BYE, QUERY, UPDATE, HELLO_BT, FILE, FILE_COUNT, FB_QUERY, FB_COUNT, FB_DATA
 	};
@@ -19,6 +14,16 @@ public class Packet {
 	public enum METHOD {
 		WD,BT, FB
 	};
+
+	public int getId() {
+		return id;
+	}
+
+	public void setId(int id) {
+		this.id = id;
+	}
+
+	private int id;
 
 	private byte[] data;
 	private Packet.TYPE type;
@@ -59,9 +64,12 @@ public class Packet {
 	 * @param receiverMac
 	 * @param senderMac
 	 */
-	public Packet(Packet.TYPE type, byte[] extraData, String receiverMac, String senderMac, String btRMac, String btSMac) {
+	public Packet(int id, Packet.TYPE type, byte[] extraData, String receiverMac, String senderMac, String btRMac, String btSMac) {
 		this.setData(extraData);
 		this.setType(type);
+		if (id == -1){
+			this.id = new Random().nextInt();
+		} else this.id = id;
 		this.receiverMac = receiverMac;
 		this.setTtl(3);
 		if (receiverMac == null)
@@ -82,10 +90,13 @@ public class Packet {
 	 * @param senderMac
 	 * @param timetolive
 	 */
-	public Packet(TYPE type2, byte[] eData, String receivermac, String senderMac, String btRMac, String btSMac, int timetolive) {
+	public Packet(int id,TYPE type2, byte[] eData, String receivermac, String senderMac, String btRMac, String btSMac, int timetolive) {
 		this.setData(eData);
 		this.setType(type2);
 		this.receiverMac = receivermac;
+		if (id == -1){
+			this.id = new Random().nextInt();
+		} else this.id = id;
 		if (receiverMac == null)
 			this.receiverMac = "00:00:00:00:00:00";
 		this.senderMac = senderMac;
@@ -165,36 +176,38 @@ public class Packet {
 	public byte[] serialize() {
 
 		// 6 bytes for mac
-		byte[] serialized = new byte[1 + data.length + 26];
-		serialized[0] = (byte) type.ordinal();
+		byte[] serialized = new byte[2 + data.length + 26];
+		serialized[0] = (byte) id;
 
-		serialized[1] = (byte) ttl;
+		serialized[1] = (byte) type.ordinal();
+
+		serialized[2] = (byte) ttl;
 
 		byte[] mac = getMacAsBytes(this.receiverMac);
 
-		for (int i = 2; i <= 7; i++) {
-			serialized[i] = mac[i - 2];
+		for (int i = 3; i <= 8; i++) {
+			serialized[i] = mac[i - 3];
 		}
 		mac = getMacAsBytes(this.senderMac);
 
-		for (int i = 8; i <= 13; i++) {
-			serialized[i] = mac[i - 8];
+		for (int i = 9; i <= 14; i++) {
+			serialized[i] = mac[i - 9];
 		}
 
         mac = getMacAsBytes(this.btRMac);
 
-        for (int i = 14; i <= 19; i++) {
-            serialized[i] = mac[i - 14];
+        for (int i = 15; i <= 20; i++) {
+            serialized[i] = mac[i - 15];
         }
 
         mac = getMacAsBytes(this.btSMac);
 
-        for (int i = 20; i <= 25; i++) {
-            serialized[i] = mac[i - 20];
+        for (int i = 21; i <= 26; i++) {
+            serialized[i] = mac[i - 21];
         }
 
-		for (int i = 27; i < serialized.length; i++) {
-			serialized[i] = data[i - 27];
+		for (int i = 28; i < serialized.length; i++) {
+			serialized[i] = data[i - 28];
 		}
 		return serialized;
 	}
@@ -205,19 +218,19 @@ public class Packet {
 	 * @return
 	 */
 	public static Packet deserialize(byte[] inputData) {
-		Packet.TYPE type = TYPE.values()[(int) inputData[0]];
+		int id = (int) inputData[0];
+		Packet.TYPE type = TYPE.values()[(int) inputData[1]];
+		byte[] data = new byte[inputData.length - 28];
+		int timetolive = (int) inputData[2];
+		String mac = getMacBytesAsString(inputData, 3);
+		String receivermac = getMacBytesAsString(inputData, 9);
+        String btReceivemac = getMacBytesAsString(inputData, 15);
+        String btSendmac = getMacBytesAsString(inputData, 21);
 
-		byte[] data = new byte[inputData.length - 27];
-		int timetolive = (int) inputData[1];
-		String mac = getMacBytesAsString(inputData, 2);
-		String receivermac = getMacBytesAsString(inputData, 8);
-        String btReceivemac = getMacBytesAsString(inputData, 14);
-        String btSendmac = getMacBytesAsString(inputData, 20);
-
-		for (int i = 27; i < inputData.length; i++) {
-			data[i - 27] = inputData[i];
+		for (int i = 28; i < inputData.length; i++) {
+			data[i - 28] = inputData[i];
 		}
-		return new Packet(type, data, mac, receivermac,btReceivemac, btSendmac, timetolive);
+		return new Packet(id,type, data, mac, receivermac,btReceivemac, btSendmac, timetolive);
 	}
 
 	/**
