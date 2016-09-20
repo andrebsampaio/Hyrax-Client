@@ -1,10 +1,7 @@
 package edu.thesis.fct.bluedirect;
 
 import android.app.Activity;
-import android.app.admin.SystemUpdatePolicy;
 import android.content.Context;
-import android.util.SparseArray;
-import android.util.SparseBooleanArray;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
@@ -12,7 +9,6 @@ import org.apache.commons.io.output.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -23,13 +19,15 @@ import java.util.Random;
 
 import edu.thesis.fct.bluedirect.config.Configuration;
 import edu.thesis.fct.bluedirect.fallback.FBSender;
-import edu.thesis.fct.bluedirect.fallback.GCMSender;
+import edu.thesis.fct.bluedirect.fallback.FileSender;
 import edu.thesis.fct.bluedirect.router.AllEncompasingP2PClient;
 import edu.thesis.fct.bluedirect.router.MeshNetworkManager;
 import edu.thesis.fct.bluedirect.router.Packet;
 import edu.thesis.fct.bluedirect.router.Receiver;
 import edu.thesis.fct.bluedirect.router.Sender;
 import edu.thesis.fct.bluedirect.wifi.WiFiDirectBroadcastReceiver;
+import edu.thesis.fct.client.GalleryActivity;
+import edu.thesis.fct.client.InstrumentationUtils;
 
 /**
  * Created by abs on 10-07-2016.
@@ -139,9 +137,18 @@ public class BluedirectAPI {
                 remaining--;
             }
             Receiver.seenIDs.add(packetId);
+            if (GalleryActivity.utils != null){
+                GalleryActivity.utils.registerLatency(InstrumentationUtils.RECOG);
+            }
 
         } else {
-            FBSender.queuePacket(new Packet(Packet.NEW_ID,Packet.TYPE.FB_QUERY,msg.getBytes(),null, Configuration.getFallbackId((Activity)activity),null,null),null);
+            try {
+                GalleryActivity.utils.registerLatency(InstrumentationUtils.IMG_LIST_RQ);
+                FileSender.sendQueryFile(template,Configuration.getServerURL(activity) + "fetch",activity);
+                GalleryActivity.utils.calculateLatency(InstrumentationUtils.IMG_LIST_RQ);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
     }

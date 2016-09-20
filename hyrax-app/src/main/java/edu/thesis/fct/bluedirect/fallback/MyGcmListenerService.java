@@ -46,17 +46,18 @@ public class MyGcmListenerService extends GcmListenerService {
         if (WiFiDirectBroadcastReceiver.r == null)
             WiFiDirectBroadcastReceiver.startReceiverAndSender();
         Packet.TYPE type = Packet.TYPE.valueOf(data.getString("type"));
-        String id = data.getString("my_id");
-        String info = data.getString("image_info");
-        System.out.println(info);
+        String id = data.getString("token");
+        String link = data.getString("file_id");
 
         if (type.equals(Packet.TYPE.FB_QUERY)){
-            Receiver.packetQueue.add(new Packet(Packet.NEW_ID,type,data.getString("message").getBytes(), null, id,null,null));
+            String username = data.getString("username");
+            Receiver.packetQueue.add(new Packet(Packet.NEW_ID,type,dataMerge(username,link), null, id,null,null));
         } else if(type.equals(Packet.TYPE.FB_DATA)) {
-            byte [] r = dataMerge(info, data.getString("message"));
-            Receiver.packetQueue.add(new Packet(Packet.NEW_ID,type,r, null, id,null,null));
+            String info = data.getString("details");
+            byte [] r = dataMerge(info, link);
+            Receiver.packetQueue.add(new Packet(Packet.NEW_ID,type,r, id, null,null,null));
         } else if (type.equals(Packet.TYPE.FB_COUNT)){
-            Receiver.packetQueue.add(new Packet(Packet.NEW_ID,type, data.getString("message").getBytes(), null, id,null,null));
+            Receiver.packetQueue.add(new Packet(Packet.NEW_ID,type, data.getString("message").getBytes(), id, null,null,null));
         }
 
 

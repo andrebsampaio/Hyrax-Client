@@ -303,8 +303,12 @@ public class BTService {
                 try {
                     // This is a blocking call and will only return on a
                     // successful connection or an exception
-                    if (mmServerSocket == null) BTService.this.start();
-                    socket = mmServerSocket.accept();
+                    if (mmServerSocket == null) {
+                        BTService.this.start();
+                    } else {
+                        socket = mmServerSocket.accept();
+                    }
+
                 } catch (IOException e) {
                     Log.e(TAG, "Socket Type: " + mSocketType + "accept() failed", e);
                     break;

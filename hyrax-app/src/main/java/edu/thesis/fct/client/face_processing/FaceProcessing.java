@@ -1,21 +1,19 @@
-package edu.thesis.fct.client;
+package edu.thesis.fct.client.face_processing;
 
 
 import android.content.Context;
 import android.os.Environment;
 
-import org.apache.commons.io.FileUtils;
+import org.bytedeco.javacpp.flandmark;
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.MatVector;
-import org.bytedeco.javacpp.opencv_face;
 import org.bytedeco.javacpp.opencv_face.FaceRecognizer;
 import org.bytedeco.javacpp.opencv_face.BasicFaceRecognizer;
 
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,7 +24,15 @@ import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import edu.thesis.fct.client.GalleryActivity;
+import edu.thesis.fct.client.ImageModel;
+import edu.thesis.fct.client.R;
+import edu.thesis.fct.client.RecognitionEngineHolder;
+
+import static org.bytedeco.javacpp.flandmark.flandmark_init;
+import static org.bytedeco.javacpp.opencv_face.createEigenFaceRecognizer;
 import static org.bytedeco.javacpp.opencv_face.createFisherFaceRecognizer;
+import static org.bytedeco.javacpp.opencv_imgcodecs.cvLoadImage;
 import static org.bytedeco.javacpp.opencv_imgcodecs.imread;
 import static org.bytedeco.javacpp.opencv_core.CV_32SC1;
 import static org.bytedeco.javacpp.opencv_imgcodecs.CV_LOAD_IMAGE_GRAYSCALE;
@@ -45,8 +51,26 @@ public class FaceProcessing {
     public static Size trainSize;
     public static CascadeClassifier cascadeClassifier;
     public static CascadeClassifier eyeClassifier;
+    public static flandmark.FLANDMARK_Model model;
+
+    public static void init_face_processing(Context context){
+        try {
+            if (model == null)
+                model = flandmark_init(ImageProcUtils.getfileFromResources(context, R.raw.flandmark_model, "flandmark_model.dat").getAbsolutePath());
+            if (eyeClassifier == null)
+                eyeClassifier = new CascadeClassifier(ImageProcUtils.getfileFromResources(context,R.raw.haarcascade_eye_tree_eyeglasses,
+                        "eye_cacade.xml").getAbsolutePath());
+            if (cascadeClassifier == null){
+                File mCascade = ImageProcUtils.getfileFromResources(context, R.raw.haarcascade_frontalface_alt,"haarcascade_frontalface_alt.xml");
+                cascadeClassifier = new CascadeClassifier(mCascade.getAbsolutePath());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     public static FaceRecognizer trainAndSave(String train, String saveDir, Context context){
+        init_face_processing(context);
         String trainingDir = train;
         File root = new File(trainingDir);
 
@@ -58,11 +82,12 @@ public class FaceProcessing {
                 tmp.addAll(Arrays.asList(faces.listFiles()));
             }
             else {
-                faces.mkdirs();
                 for (File inner : outer.listFiles()){
                     if (inner.getName().equals("faces")) continue;
-                    File f = detectFacesOpenCV(inner,true,context);
-                    if(f != null) tmp.add(f);
+                    List<File> f = detectFlandMark(inner,cascadeClassifier,eyeClassifier,model, true);
+                    if (f != null && f.size() == 1){
+                        tmp.add(f.get(0));
+                    }
                 }
             }
         }
@@ -81,11 +106,7 @@ public class FaceProcessing {
 
 
         for (File image : imageFiles) {
-            Mat img = imread(image.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
-
-            if (img.size() != trainSize) {
-                img = resizeImage(img,trainSize);
-            }
+            Mat img = imread(image.getAbsolutePath(),CV_LOAD_IMAGE_GRAYSCALE);
 
             String name = image.getName().split("_")[0] + "_" + image.getName().split("_")[1] + "_" + image.getName().split("_")[2] ;
 
@@ -98,9 +119,9 @@ public class FaceProcessing {
             counter++;
         }
 
-        FaceRecognizer faceRecognizer = createFisherFaceRecognizer();
-        // FaceRecognizer faceRecognizer = createEigenFaceRecognizer();
-         //FaceRecognizer faceRecognizer = createLBPHFaceRecognizer();
+        //FaceRecognizer faceRecognizer = createFisherFaceRecognizer();
+        FaceRecognizer faceRecognizer = createEigenFaceRecognizer();
+        //FaceRecognizer faceRecognizer = createLBPHFaceRecognizer();
 
         faceRecognizer.train(images, labels);
         for (int i = 0; i < names.length; i++){
@@ -118,13 +139,14 @@ public class FaceProcessing {
     }
 
     public static double[] recognize(String recogImage, FaceRecognizer faceRecognizer, Context context){
-
-        File faces = detectFacesOpenCV(new File(recogImage),false,context);
-        double [] result = new double[faces.listFiles().length];
+        init_face_processing(context);
+        List<File> faces = detectFlandMark(new File(recogImage),cascadeClassifier,eyeClassifier,model, false);
+        if (faces == null || faces.isEmpty()) return null;
+        double [] result = new double[faces.size()];
         int count = 0;
-        for (File f : faces.listFiles()){
+        for (File f : faces){
             Mat image = imread(f.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
-            image = resizeImage(image,trainSize);
+            //resizeImage(image,trainSize);
             double[] prediction = new double[1];
             int[] predictionImageLabel = new int[1];
             /*try {
@@ -137,15 +159,13 @@ public class FaceProcessing {
                 e.printStackTrace();
             }*/
             faceRecognizer.predict(image, predictionImageLabel, prediction);
-            System.out.println("Predicted label: " + faceRecognizer.getLabelInfo(predictionImageLabel[0]).getString() + " Confidence:" + prediction[0]);
+            //System.out.println("Predicted label: " + faceRecognizer.getLabelInfo(predictionImageLabel[0]).getString() + " Confidence:" + prediction[0]);
             result[count] = prediction[0];
             count++;
 
         }
-        try {
-            FileUtils.deleteDirectory(faces);
-        } catch (IOException e) {
-            e.printStackTrace();
+        for (File f : faces){
+            f.delete();
         }
         return result;
     }
@@ -209,17 +229,25 @@ public class FaceProcessing {
 
     public static List<ImageModel> recognizeInPath(List<ImageModel> images, FaceRecognizer recognizer, Context context){
         List<ImageModel> result = new ArrayList<>();
+        int positive = 0; int negative = 0; int error = 0;
         for (ImageModel outter : images){
             File image = new File(GalleryActivity.HYRAX_PATH, outter.getPhotoName() + File.separator + outter.getPhotoName() + ".jpg");
             double [] euclidean = recognize(image.getAbsolutePath(),recognizer,context);
-            for (double d : euclidean){
-                if (d < 3000){
-                    result.add(outter);
-                    break;
+            if (euclidean == null){
+                error++;
+            } else {
+                for (double d : euclidean){
+                    if (d < 2700){
+                        result.add(outter);
+                        positive++;
+                    } else {
+                        negative++;
+                    }
                 }
             }
 
         }
+        System.out.println("Positive: " + positive + "," + " Negative: " + negative + "," + "Error: " + error);
         return result;
     }
 
@@ -357,6 +385,17 @@ public class FaceProcessing {
         Mat dst = new Mat();
         warpAffine(src, dst, rot_mat, src.size());
         return dst;
+    }
+
+    public static List<File> detectFlandMark(File image, CascadeClassifier faceClassifier, CascadeClassifier eyeClassifier, flandmark.FLANDMARK_Model model, boolean isTraining){
+        Mat gray_image_mat = imread(image.getAbsolutePath(),CV_LOAD_IMAGE_GRAYSCALE);
+        opencv_core.IplImage gray_image_iipl = cvLoadImage(image.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
+        try {
+            return FlandMarkJava.alignImage(FaceRecognitionAsync.RECOG_PATH,gray_image_mat,gray_image_iipl,faceClassifier,model,image.getAbsolutePath(),eyeClassifier, isTraining);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
 

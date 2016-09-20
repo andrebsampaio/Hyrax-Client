@@ -7,7 +7,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-import android.hardware.camera2.params.Face;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
@@ -26,7 +25,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
-import com.android.volley.NetworkResponse;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 
@@ -66,8 +64,8 @@ import edu.thesis.fct.bluedirect.ui.DeviceDetailFragment;
 import edu.thesis.fct.bluedirect.ui.DeviceListFragment;
 import edu.thesis.fct.bluedirect.ui.DeviceListFragment.DeviceActionListener;
 import edu.thesis.fct.bluedirect.wifi.WiFiDirectBroadcastReceiver;
-import edu.thesis.fct.client.FaceProcessing;
-import edu.thesis.fct.client.FaceRecognitionAsync;
+import edu.thesis.fct.client.face_processing.FaceProcessing;
+import edu.thesis.fct.client.face_processing.FaceRecognitionAsync;
 import edu.thesis.fct.client.GalleryActivity;
 import edu.thesis.fct.client.ImageModel;
 import edu.thesis.fct.client.InstrumentationUtils;
@@ -148,7 +146,7 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 			public void onPacketReceived(Packet p) {
 				if(p.getType().equals(Packet.TYPE.FB_QUERY) || p.getType().equals(Packet.TYPE.FB_DATA)
 						|| p.getType().equals(Packet.TYPE.FB_COUNT) ){
-					if (p.getSenderMac().equals(Configuration.getFallbackId(context))) return;
+					if (p.getSenderMac() != null && p.getSenderMac().equals(Configuration.getFallbackId(context))) return;
 				}
 				if (p.getType().equals(Packet.TYPE.QUERY) || p.getType().equals(Packet.TYPE.FB_QUERY) ) {
 					if (!BluedirectActivity.fallback){
@@ -160,7 +158,10 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 							checkAndSendImages(username, parsed.get(1), p.getSenderMac(), p.getBtSMac(), context);
 						}
 					} else {
-							checkAndSendImages(new String(p.getData()),null, p.getSenderMac(), null, context);
+							List<byte[]> parsed = deserializeQuery(p.getData());
+							String username = new String (parsed.get(0));
+							String link = new String(parsed.get(1));
+							new DownloadAndRecognize(Configuration.getServerURL(context) + "model/" + link, context,p.getSenderMac(),username).execute();
 					}
 				} else if (p.getType().equals(Packet.TYPE.FILE)) {
 					new SavePhotoTask(p.getMac()).execute(p.getData());
@@ -175,11 +176,18 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 					totalToReceive += count;
 					updateProgressDialog(totalToReceive);
 				} else if (p.getType().equals(Packet.TYPE.FB_DATA)) {
+					if (totalToReceive == 0){
+						GalleryActivity.utils.registerLatency(InstrumentationUtils.P2P_TRANSFER);
+						GalleryActivity.utils.registerBytes(InstrumentationUtils.RX);
+						GalleryActivity.utils.registerBytes(InstrumentationUtils.TX);
+						GalleryActivity.utils.registerPackets(InstrumentationUtils.RX);
+						GalleryActivity.utils.registerPackets(InstrumentationUtils.TX);
+					}
 					String [] info = deserializePacketFB(p);
 					ImageModel i = ImageModel.fromString(info[0]);
 					File location = new File(Environment.getExternalStorageDirectory().getAbsolutePath()
 							+ File.separator + "Hyrax" + File.separator + i.getPhotoName() + File.separator + i.getPhotoName() + ".jpg");
-					new DownloadFileFromURL(location,info[1], i).execute();
+						new DownloadFileFromURL(location,Configuration.getServerURL((Activity)context) + "images/" + info[1], i).execute();
 				}
 			}
 		});
@@ -364,7 +372,7 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 			}
 		}*/
 
-		toSend.addAll(FaceProcessing.recognizeInPath(new ArrayList<>(ListingSingleton.getInstance().getImages().values()), RecognitionEngineHolder.getInstance().getEngine(),context));
+		toSend.addAll(/*FaceProcessing.recognizeInPath(*/new ArrayList<>(ListingSingleton.getInstance().getImages().values())/*, RecognitionEngineHolder.getInstance().getEngine(),context)*/);
 
 		if (!BluedirectActivity.fallback) {
 			Sender.queuePacket(new Packet(Packet.NEW_ID,Packet.TYPE.FILE, convertListToByteArray(toSend), rcvMac, WiFiDirectBroadcastReceiver.MAC, btRcvMac, Configuration.getBluetoothSelfMac(context)));
@@ -394,14 +402,14 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 			Sender.queuePacket(new Packet(Packet.NEW_ID,Packet.TYPE.FILE, ImageToBytes(img, file), rcvMac, WiFiDirectBroadcastReceiver.MAC, btRcvMac, Configuration.getBluetoothSelfMac(context)));
 		else {
 			try {
-				FileSender.sendFile(file,Configuration.getServerURL(context) + "upload", context, img);
-				FileSender.setOnFileReceivedListener(new FileSender.onFileReceivedListener() {
+				FileSender.sendFile(rcvMac, file,Configuration.getServerURL(context) + "upload", context, img);
+				/*FileSender.setOnFileReceivedListener(new FileSender.onFileReceivedListener() {
 					@Override
 					public void onFileReceived(NetworkResponse response, ImageModel image) {
 						final String id = new String(response.data);
 						FBSender.queuePacket(new Packet(Packet.NEW_ID,Packet.TYPE.FB_DATA,(Configuration.getServerURL(context) + "images/" + id).getBytes(), rcvMac, Configuration.getFallbackId((Activity)context),null,null),image);
 					}
-				});
+				});*/
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -658,7 +666,108 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 
 	}
 
-	class DownloadFileFromURL extends AsyncTask<Void, String, String> {
+	class DownloadAndRecognize extends AsyncTask<Void, String, Void> {
+
+		String mURL;
+		Context context;
+		String macrcv;
+		String username;
+
+		public DownloadAndRecognize(String mURL, Context context, String macrcv, String username){
+			this.mURL = mURL;
+			this.context = context;
+			this.macrcv = macrcv;
+			this.username = username;
+		}
+
+		@Override
+		protected Void doInBackground(Void... params) {
+			try {
+				byte [] model = downloadByteArray(mURL);
+				checkAndSendImages(username,model,macrcv,null,context);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return null;
+		}
+	}
+
+	private byte [] downloadByteArray(String mURL) throws IOException {
+		int count;
+		URL url = new URL(mURL);
+		URLConnection conection = url.openConnection();
+		conection.connect();
+		// this will be useful so that you can show a tipical 0-100%           progress bar
+		int lenghtOfFile = conection.getContentLength();
+
+		// download the file
+		InputStream input = new BufferedInputStream(url.openStream(), 8192);
+
+
+		// Output stream
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+		byte data[] = new byte[1024];
+
+		long total = 0;
+
+		while ((count = input.read(data)) != -1) {
+			total += count;
+			// publishing the progress....
+			// After this onProgressUpdate will be called
+
+			// writing data to file
+			output.write(data, 0, count);
+		}
+
+		// flushing output
+		output.flush();
+		byte [] res = output.toByteArray();
+		// closing streams
+		output.close();
+		input.close();
+		return res;
+	}
+
+
+	private void downloadFile(File mFile, String mURL) throws IOException {
+		int count;
+			URL url = new URL(mURL);
+			URLConnection conection = url.openConnection();
+			conection.connect();
+			// this will be useful so that you can show a tipical 0-100%           progress bar
+			int lenghtOfFile = conection.getContentLength();
+
+			// download the file
+			InputStream input = new BufferedInputStream(conection.getInputStream());
+
+			mFile.getParentFile().mkdirs();
+
+			// Output stream
+			OutputStream output = new FileOutputStream(mFile);
+
+			byte data[] = new byte[1024];
+
+			long total = 0;
+
+			while ((count = input.read(data)) != -1) {
+				total += count;
+				// publishing the progress....
+				// After this onProgressUpdate will be called
+
+				// writing data to file
+				output.write(data, 0, count);
+			}
+
+			// flushing output
+			output.flush();
+
+			// closing streams
+			output.close();
+			input.close();
+	}
+
+		class DownloadFileFromURL extends AsyncTask<Void, String, String> {
 
 		File mFile;
 		String mURL;
@@ -677,40 +786,7 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 		protected String doInBackground(Void... voids) {
 			int count;
 			try {
-				URL url = new URL(mURL);
-				URLConnection conection = url.openConnection();
-				conection.connect();
-				// this will be useful so that you can show a tipical 0-100%           progress bar
-				int lenghtOfFile = conection.getContentLength();
-
-				// download the file
-				InputStream input = new BufferedInputStream(url.openStream(), 8192);
-
-				mFile.getParentFile().mkdirs();
-
-				// Output stream
-				OutputStream output = new FileOutputStream(mFile);
-
-				byte data[] = new byte[1024];
-
-				long total = 0;
-
-				while ((count = input.read(data)) != -1) {
-					total += count;
-					// publishing the progress....
-					// After this onProgressUpdate will be called
-
-					// writing data to file
-					output.write(data, 0, count);
-				}
-
-				// flushing output
-				output.flush();
-
-				// closing streams
-				output.close();
-				input.close();
-
+				downloadFile(mFile,mURL);
 				ImageModel.writeToFile(ListingSingleton.listing,i);
 				return mFile.getAbsolutePath();
 			} catch (Exception e) {
@@ -723,7 +799,16 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 		@Override
 		protected void onPostExecute(String s){
 			totalToReceive--;
-			if (totalToReceive == 0) GalleryActivity.progressDialog.dismiss();
+			if (totalToReceive == 0) {
+
+				GalleryActivity.utils.calculateLatency(InstrumentationUtils.P2P_TRANSFER);
+				GalleryActivity.utils.calculateBytes(InstrumentationUtils.BYTES_C2S,InstrumentationUtils.RX);
+				GalleryActivity.utils.calculateBytes(InstrumentationUtils.BYTES_C2S,InstrumentationUtils.TX);
+				GalleryActivity.utils.calculatePackets(InstrumentationUtils.PACKETS_C2S,InstrumentationUtils.RX);
+				GalleryActivity.utils.calculatePackets(InstrumentationUtils.PACKETS_C2S,InstrumentationUtils.TX);
+				GalleryActivity.utils.endTest();
+				GalleryActivity.progressDialog.dismiss();
+			}
 			else updateProgressDialog(totalToReceive);
 			if (s != null && GalleryActivity.isVisible()){
 				GalleryActivity.updateGallery(new File(s));

@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.os.Build;
 
 import edu.thesis.fct.bluedirect.bt.BTService;
 import edu.thesis.fct.bluedirect.bt.BluetoothBroadcastReceiver;
@@ -35,8 +36,15 @@ public class Configuration {
 	public static final boolean isDeviceBridgingEnabled = false;
 
     public static String getBluetoothSelfMac(Context context){
-        BluetoothManager ba=(BluetoothManager)context.getSystemService(Context.BLUETOOTH_SERVICE);
-        return ba.getAdapter().getAddress();
+		if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN_MR2){
+			BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+			return mBluetoothAdapter.getAddress();
+		} else {
+			BluetoothManager ba=(BluetoothManager)context.getSystemService(Context.BLUETOOTH_SERVICE);
+			return ba.getAdapter().getAddress();
+		}
+
+
     }
 
 	public static String getFallbackId(Activity context){

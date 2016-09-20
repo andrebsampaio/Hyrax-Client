@@ -3,7 +3,6 @@ package edu.thesis.fct.client;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -34,12 +33,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import edu.thesis.fct.bluedirect.BluedirectAPI;
+import edu.thesis.fct.client.face_processing.FaceRecognitionAsync;
 
 public class GalleryActivity extends AppCompatActivity {
 
@@ -329,14 +328,6 @@ public class GalleryActivity extends AppCompatActivity {
         protected void onProgressUpdate(Void... progress) {
 
         }
-    }
-
-    private void buildTextPart(DataOutputStream dataOutputStream, String parameterName, String parameterValue) throws IOException {
-        dataOutputStream.writeBytes(twoHyphens + boundary + lineEnd);
-        dataOutputStream.writeBytes("Content-Disposition: form-data; name=\"" + parameterName + "\"" + lineEnd);
-        dataOutputStream.writeBytes("Content-Type: text/plain; charset=UTF-8" + lineEnd);
-        dataOutputStream.writeBytes(lineEnd);
-        dataOutputStream.writeBytes(parameterValue + lineEnd);
     }
 
     private void buildPart(DataOutputStream dataOutputStream, byte[] fileData, String fileName) throws IOException {

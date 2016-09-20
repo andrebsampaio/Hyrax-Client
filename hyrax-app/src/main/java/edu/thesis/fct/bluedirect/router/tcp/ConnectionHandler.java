@@ -42,6 +42,7 @@ public class ConnectionHandler implements Runnable {
 
             boolean isFile = in.readBoolean();
             if (isFile){
+                GalleryActivity.utils.calculateLatency(InstrumentationUtils.RECOG);
                 GalleryActivity.utils.registerLatency(InstrumentationUtils.P2P_TRANSFER);
                 int filesNumber = in.readInt();
                 for (int i = 0; i < filesNumber; i++){
@@ -65,6 +66,7 @@ public class ConnectionHandler implements Runnable {
                 }
                 GalleryActivity.utils.calculateLatency(InstrumentationUtils.P2P_TRANSFER);
                 GalleryActivity.utils.endTest();
+                System.out.println("ACCABBBOUUUU");
             } else {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
 

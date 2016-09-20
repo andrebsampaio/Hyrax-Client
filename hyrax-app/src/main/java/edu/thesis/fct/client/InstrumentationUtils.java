@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.net.TrafficStats;
 import android.os.BatteryManager;
 import android.os.Environment;
+import android.os.SystemClock;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -36,6 +37,7 @@ public class InstrumentationUtils {
     public static final int PACKETS_C2S = 10;
     public static final int RX = 11;
     public static final int TX = 12;
+    public static final int RECOG = 13;
     static final String SEPARATOR = ",";
     int transferProtocol;
     int networkType;
@@ -61,6 +63,7 @@ public class InstrumentationUtils {
     long imagesRqLatency;
     long addIndexRqLatency;
     long p2pTransferLatency;
+    long recogLatency;
 
     int testSession;
 
@@ -134,6 +137,8 @@ public class InstrumentationUtils {
             addIndexRqLatency = System.currentTimeMillis();
         } else if (request == P2P_TRANSFER) {
             p2pTransferLatency = System.currentTimeMillis();
+        } else if (request == RECOG){
+            recogLatency = System.currentTimeMillis();
         }
     }
 
@@ -144,6 +149,8 @@ public class InstrumentationUtils {
             addIndexRqLatency = System.currentTimeMillis() - addIndexRqLatency;
         } else if (request == P2P_TRANSFER) {
             p2pTransferLatency = System.currentTimeMillis() - p2pTransferLatency;
+        } else if (request == RECOG){
+            recogLatency = System.currentTimeMillis() - recogLatency;
         }
     }
 
@@ -165,7 +172,7 @@ public class InstrumentationUtils {
         return level / (float)scale;
     }
 
-    private long getBytesReceived(){
+    public long getBytesReceived(){
         return TrafficStats.getUidRxBytes(appId);
     }
 
@@ -202,7 +209,8 @@ public class InstrumentationUtils {
                     + SEPARATOR + packetsC2CRx + SEPARATOR + packetsC2CTx + SEPARATOR + packetsC2SRx
                     + SEPARATOR + packetsC2STx + SEPARATOR + time
                     + SEPARATOR + protocolToString(transferProtocol) + SEPARATOR + imagesRqLatency
-                    + SEPARATOR + addIndexRqLatency + SEPARATOR + p2pTransferLatency);
+                    + SEPARATOR + addIndexRqLatency + SEPARATOR + p2pTransferLatency
+                    + SEPARATOR + recogLatency);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {

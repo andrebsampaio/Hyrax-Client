@@ -45,6 +45,9 @@ import java.util.Scanner;
 import edu.thesis.fct.bluedirect.BluedirectActivity;
 import edu.thesis.fct.bluedirect.BluedirectAPI;
 import edu.thesis.fct.bluedirect.router.MeshNetworkManager;
+import edu.thesis.fct.client.face_processing.FaceRecognitionAsync;
+
+import static org.bytedeco.javacpp.flandmark.flandmark_init;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -146,7 +149,7 @@ public class LoginActivity extends AppCompatActivity {
                     Toast.makeText(context, "Please insert a username", Toast.LENGTH_LONG ).show();
                 }  else {
                     saveUsername(name);
-                    //checkUsername(name.toLowerCase(), loginURL, true);
+                   // checkUsername(name.toLowerCase(), loginURL, true);
 
                 }
             }
@@ -174,7 +177,7 @@ public class LoginActivity extends AppCompatActivity {
 
     public static void advanceFromLogin(Context context){
 
-        new FaceRecognitionAsync(new File(Environment.getExternalStorageDirectory(), "HyraxTrain"),(Activity)context).execute(true);
+        //new FaceRecognitionAsync(new File(Environment.getExternalStorageDirectory(), "HyraxTrain"),(Activity)context).execute(true);
 
         loadImagesFromStorage();
 
