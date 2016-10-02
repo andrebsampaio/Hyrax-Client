@@ -1,4 +1,4 @@
-package edu.thesis.fct.client.face_processing;
+package edu.thesis.fct.client.faceproc;
 
 import android.app.Activity;
 import android.os.AsyncTask;
@@ -11,16 +11,13 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
+import edu.thesis.fct.client.config.Configurations;
 import edu.thesis.fct.client.RecognitionEngineHolder;
 
 public class FaceRecognitionAsync extends AsyncTask<Object, Void, Void> {
 
     File mFile;
     Activity activity;
-    final static String SAVE_PATH_TMP = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "HyraxRecog" + File.separator + "my_template.yml";
-    public final static String RECOG_PATH = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "HyraxRecog" + File.separator;
-    public final static String SAVE_PATH =  RECOG_PATH + "my_template.gz";
-    public final static String TRAIN_PATH = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "HyraxTrain";
 
     public FaceRecognitionAsync(File file, Activity activity){
         mFile = file;
@@ -29,21 +26,19 @@ public class FaceRecognitionAsync extends AsyncTask<Object, Void, Void> {
 
     @Override
     protected Void doInBackground(Object... params) {
-        if (!new File(TRAIN_PATH).exists()) return null;
+        if (!new File(Configurations.TRAIN_PATH).exists()) return null;
         if ((boolean)params[0]){
             opencv_face.FaceRecognizer faceRecognizer;
-            if (new File(SAVE_PATH).exists()){
-               faceRecognizer = FaceProcessing.loadEngineFromFile(SAVE_PATH);
+            if (new File(Configurations.SAVE_PATH).exists()){
+               faceRecognizer = FaceProcessing.loadEngineFromFile(Configurations.SAVE_PATH);
             } else {
-                faceRecognizer = FaceProcessing.trainAndSave(TRAIN_PATH, SAVE_PATH_TMP,activity);
+                faceRecognizer = FaceProcessing.trainAndSave(Configurations.TRAIN_PATH, Configurations.SAVE_PATH_TMP,activity);
             }
             RecognitionEngineHolder.getInstance().setEngine(faceRecognizer);
         } else {
             FaceProcessing.recognize(mFile.getAbsolutePath(),RecognitionEngineHolder.getInstance().getEngine(),activity);
         }
 
-        //FaceProcessing.recognize(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "Download" + File.separator + "dicap.jpg",RecognitionEngineHolder.getInstance().getEngine(),activity );
-        //FaceProcessing.recognize(new File(TRAIN_PATH + File.separator + "Adrien_Brody").listFiles()[0].getAbsolutePath(),RecognitionEngineHolder.getInstance().getEngine(),activity );
         return null;
     }
 

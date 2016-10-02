@@ -29,8 +29,6 @@ public class MyGcmListenerService extends GcmListenerService {
 
     private static final String TAG = "MyGcmListenerService";
 
-
-
     /**
      * Called when message is received.
      *

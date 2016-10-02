@@ -24,8 +24,6 @@ public class ImageModel implements Serializable {
     String time;
     String [] people;
     static final String SEPARATOR = ",";
-    public static final String PREFIX = Environment.getExternalStorageDirectory() + File.separator + "Hyrax" + File.separator;
-    public static final String SUFFIX = ".jpg";
 
     public ImageModel(int id, String location, String time, String [] people){
         this.id = id;

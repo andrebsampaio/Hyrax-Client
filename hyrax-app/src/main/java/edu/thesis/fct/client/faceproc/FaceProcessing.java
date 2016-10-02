@@ -1,4 +1,4 @@
-package edu.thesis.fct.client.face_processing;
+package edu.thesis.fct.client.faceproc;
 
 
 import android.content.Context;
@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import edu.thesis.fct.client.GalleryActivity;
+import edu.thesis.fct.client.config.Configurations;
 import edu.thesis.fct.client.ImageModel;
 import edu.thesis.fct.client.R;
 import edu.thesis.fct.client.RecognitionEngineHolder;
@@ -53,15 +53,18 @@ public class FaceProcessing {
     public static CascadeClassifier eyeClassifier;
     public static flandmark.FLANDMARK_Model model;
 
+    static final String FLANDMARK = "flandmark_model.dat";
+    static final String CASCADE = "haarcascade_frontalface_alt.xml";
+
     public static void init_face_processing(Context context){
         try {
             if (model == null)
-                model = flandmark_init(ImageProcUtils.getfileFromResources(context, R.raw.flandmark_model, "flandmark_model.dat").getAbsolutePath());
+                model = flandmark_init(ImageProcUtils.getfileFromResources(context, R.raw.flandmark_model, FLANDMARK).getAbsolutePath());
             if (eyeClassifier == null)
                 eyeClassifier = new CascadeClassifier(ImageProcUtils.getfileFromResources(context,R.raw.haarcascade_eye_tree_eyeglasses,
                         "eye_cacade.xml").getAbsolutePath());
             if (cascadeClassifier == null){
-                File mCascade = ImageProcUtils.getfileFromResources(context, R.raw.haarcascade_frontalface_alt,"haarcascade_frontalface_alt.xml");
+                File mCascade = ImageProcUtils.getfileFromResources(context, R.raw.haarcascade_frontalface_alt,CASCADE);
                 cascadeClassifier = new CascadeClassifier(mCascade.getAbsolutePath());
             }
         } catch (Exception e) {
@@ -131,7 +134,7 @@ public class FaceProcessing {
         File saveDirFile = new File(saveDir);
         saveDirFile.getParentFile().mkdirs();
         faceRecognizer.save(saveDir);
-        gzipIt(saveDir,FaceRecognitionAsync.SAVE_PATH);
+        gzipIt(saveDir, Configurations.SAVE_PATH);
         saveDirFile.delete();
 
 
@@ -146,20 +149,9 @@ public class FaceProcessing {
         int count = 0;
         for (File f : faces){
             Mat image = imread(f.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
-            //resizeImage(image,trainSize);
             double[] prediction = new double[1];
             int[] predictionImageLabel = new int[1];
-            /*try {
-                Mat tmp = AlignEyes(image,context);
-                if (tmp != null){
-                    image = tmp;
-                }
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }*/
             faceRecognizer.predict(image, predictionImageLabel, prediction);
-            //System.out.println("Predicted label: " + faceRecognizer.getLabelInfo(predictionImageLabel[0]).getString() + " Confidence:" + prediction[0]);
             result[count] = prediction[0];
             count++;
 
@@ -231,7 +223,7 @@ public class FaceProcessing {
         List<ImageModel> result = new ArrayList<>();
         int positive = 0; int negative = 0; int error = 0;
         for (ImageModel outter : images){
-            File image = new File(GalleryActivity.HYRAX_PATH, outter.getPhotoName() + File.separator + outter.getPhotoName() + ".jpg");
+            File image = new File(Configurations.HYRAX_PATH, outter.getPhotoName() + File.separator + outter.getPhotoName() + Configurations.JPG);
             double [] euclidean = recognize(image.getAbsolutePath(),recognizer,context);
             if (euclidean == null){
                 error++;
@@ -254,10 +246,10 @@ public class FaceProcessing {
     public static FaceRecognizer loadEngineFromFile(String path){
         BasicFaceRecognizer faceRecognizer = createFisherFaceRecognizer();
         String storePath;
-        if (path.contains("my_template")){
-            storePath = FaceRecognitionAsync.SAVE_PATH_TMP;
+        if (path.contains(Configurations.MY_TEMPLATE)){
+            storePath = Configurations.SAVE_PATH_TMP;
         } else {
-            storePath = FaceRecognitionAsync.RECOG_PATH + new File(path).getName().split("\\.")[0] + ".yml";
+            storePath = Configurations.RECOG_PATH + new File(path).getName().split("\\.")[0] + Configurations.YML;
         }
         gunzipIt(path, storePath);
         faceRecognizer.load(storePath);
@@ -391,7 +383,7 @@ public class FaceProcessing {
         Mat gray_image_mat = imread(image.getAbsolutePath(),CV_LOAD_IMAGE_GRAYSCALE);
         opencv_core.IplImage gray_image_iipl = cvLoadImage(image.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
         try {
-            return FlandMarkJava.alignImage(FaceRecognitionAsync.RECOG_PATH,gray_image_mat,gray_image_iipl,faceClassifier,model,image.getAbsolutePath(),eyeClassifier, isTraining);
+            return FlandMarkJava.alignImage(Configurations.RECOG_PATH,gray_image_mat,gray_image_iipl,faceClassifier,model,image.getAbsolutePath(),eyeClassifier, isTraining);
         } catch (Exception e) {
             e.printStackTrace();
         }

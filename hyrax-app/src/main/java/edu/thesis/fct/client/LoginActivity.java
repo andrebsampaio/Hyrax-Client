@@ -1,12 +1,9 @@
 package edu.thesis.fct.client;
 
-import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.Uri;
@@ -22,11 +19,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import com.android.volley.Request;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
 import com.yalantis.cameramodule.ManagerInitializer;
 import com.yalantis.cameramodule.activity.CameraActivity;
 import com.yalantis.cameramodule.interfaces.PhotoSavedListener;
@@ -44,8 +36,9 @@ import java.util.Scanner;
 
 import edu.thesis.fct.bluedirect.BluedirectActivity;
 import edu.thesis.fct.bluedirect.BluedirectAPI;
+import edu.thesis.fct.bluedirect.config.Configuration;
 import edu.thesis.fct.bluedirect.router.MeshNetworkManager;
-import edu.thesis.fct.client.face_processing.FaceRecognitionAsync;
+import edu.thesis.fct.client.config.Configurations;
 
 import static org.bytedeco.javacpp.flandmark.flandmark_init;
 
@@ -58,15 +51,11 @@ public class LoginActivity extends AppCompatActivity {
     private static EditText username;
     private PhotosObserver photoObserver  = new PhotosObserver();
     private List<File> takenPhotos = new ArrayList<File>();
-    static final String TAG = "NSD_DISCOVER";
-    static final String SERVICE_TYPE = "_http._tcp.";
     NsdManager.DiscoveryListener mDiscoveryListener;
     NsdManager.ResolveListener mResolveListener;
     NsdManager mNsdManager;
     int port;
     InetAddress host;
-    ProgressDialog progressDialog;
-    String mServiceName = "hyrax";
     String loginURL;
     String user;
     boolean isRemote = false;
@@ -94,7 +83,7 @@ public class LoginActivity extends AppCompatActivity {
                         mNsdManager = (NsdManager) getSystemService(Context.NSD_SERVICE);
                         initializeResolveListener();
                         initializeDiscoveryListener();
-                        mNsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, mDiscoveryListener);
+                        mNsdManager.discoverServices(Configurations.SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, mDiscoveryListener);
                     }
                 })
                 .setNegativeButton("Remote", new DialogInterface.OnClickListener() {
@@ -127,7 +116,7 @@ public class LoginActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Intent myIntent = new Intent(context, GalleryActivity.class);
                 Bundle b=new Bundle();
-                b.putBoolean("isRegistration", false);
+                b.putBoolean(Configurations.KEYS.REGISTRATION.toString(), false);
                 myIntent.putExtras(b);
                 startActivity(myIntent);
             }
@@ -222,9 +211,7 @@ public class LoginActivity extends AppCompatActivity {
             InetAddress address = InetAddress.getByName(ip);
             NetworkInfoHolder.getInstance().setData(address);
             NetworkInfoHolder.getInstance().setPort(Integer.parseInt(port));
-            loginURL = "http://" + address.getHostAddress()  + ":" + port  + "/hyrax-server/rest/checkuser/";
-            SharedPreferences pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
-            pref.edit().putString("server_url", "http://" + address.getHostAddress()  + ":" + port  + "/hyrax-server/rest/").commit();
+            loginURL = Configurations.getActionURL(Configurations.ACTION.LOGIN);
         } catch (UnknownHostException e) {
             e.printStackTrace();
         }
@@ -235,63 +222,8 @@ public class LoginActivity extends AppCompatActivity {
 
     private void saveUsername(final String text){
         Intent myIntent = new Intent(context, BluedirectActivity.class);
-        SharedPreferences pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
-        SharedPreferences.Editor editor = pref.edit();
-        editor.putString("username", text);
-        editor.commit();
+        Configurations.setUsername(context,text);
         startActivity(myIntent);
-    }
-
-    private void checkUsername(final String text, String url, final boolean isLogin) {
-        final ProgressDialog progressDialog = new ProgressDialog(this);
-        if (loginURL == null){
-            Toast.makeText(context, "There was a problem connecting the servers, try again later", Toast.LENGTH_LONG ).show();
-        } else {
-            StringRequest stringRequest = new StringRequest(Request.Method.POST, url,
-                    new Response.Listener<String>() {
-                        @Override
-                        public void onResponse(String response) {
-                            if (Boolean.valueOf(response)){
-                                if (isLogin){
-                                    //Intent myIntent = new Intent(context, MainActivity.class);
-                                    SharedPreferences pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
-                                    SharedPreferences.Editor editor = pref.edit();
-                                    editor.putString("username", text);
-                                    editor.commit();
-                                    //startActivity(myIntent);
-                                } else {
-                                    Toast.makeText(context, "User already exists", Toast.LENGTH_LONG ).show();
-                                }
-                            } else {
-                                if (isLogin){
-                                    Toast.makeText(context, "User does not exist", Toast.LENGTH_LONG ).show();
-                                } else {
-                                    user = text;
-                                    openCamera();
-                                }
-                            }
-
-                            progressDialog.dismiss();
-                        }
-                    }, new Response.ErrorListener() {
-                @Override
-                public void onErrorResponse(VolleyError error) {
-                    System.out.println(error.toString());
-                }
-            }) {
-                @Override
-                protected Map<String, String> getParams() {
-                    Map<String, String> params = new HashMap<String, String>();
-                    params.put("username", text);
-                    return params;
-                }
-            };
-            Volley.newRequestQueue(this).add(stringRequest);
-
-            progressDialog.setMessage("Processing...");
-            progressDialog.show();
-        }
-
     }
 
     private void openCamera(){
@@ -325,14 +257,13 @@ public class LoginActivity extends AppCompatActivity {
                     Intent myIntent = new Intent(context, GalleryActivity.class);
                     Bundle b=new Bundle();
                     String [] photosPath = new String [takenPhotos.size()];
-                    int i = 0;
-                    for (File f : takenPhotos){
+                    for (int i = 0; i < takenPhotos.size(); i++){
                         photosPath[i] = takenPhotos.get(i).getAbsolutePath();
                         i++;
                     }
-                    b.putBoolean("isRegistration", true);
-                    b.putStringArray("images_path", photosPath);
-                    b.putString("username", user);
+                    b.putBoolean(Configurations.KEYS.REGISTRATION.toString(), true);
+                    b.putStringArray(Configurations.KEYS.IMAGE_PATH.toString(), photosPath);
+                    b.putString(Configurations.KEYS.USERNAME.toString(), user);
                     myIntent.putExtras(b);
                     startActivity(myIntent);
                 }
@@ -401,21 +332,20 @@ public class LoginActivity extends AppCompatActivity {
             //  Called as soon as service discovery begins.
             @Override
             public void onDiscoveryStarted(String regType) {
-                Log.d(TAG, "Service discovery started");
+                Log.d(Configurations.NSD_TAG, "Service discovery started");
             }
 
             @Override
             public void onServiceFound(NsdServiceInfo service) {
                 // A service was found!  Do something with it.
-                Log.d(TAG, "Service discovery success " + service);
-                if (!service.getServiceType().equals(SERVICE_TYPE)) {
+                Log.d(Configurations.NSD_TAG, "Service discovery success " + service);
+                if (!service.getServiceType().equals(Configurations.SERVICE_TYPE)) {
                     // Service type is the string containing the protocol and
                     // transport layer for this service.
-                    Log.d(TAG, "Unknown Service Type: " + service.getServiceType());
-                } else if (service.getServiceName().equals(mServiceName)) {
+                    Log.d(Configurations.NSD_TAG, "Unknown Service Type: " + service.getServiceType());
+                } else if (service.getServiceName().equals(Configurations.SERVICE_NAME)) {
                     mNsdManager.resolveService(service, mResolveListener);
-                    Log.d(TAG, "Same machine: " + mServiceName);
-                } else if (service.getServiceName().contains("hyrax")){
+                    Log.d(Configurations.NSD_TAG, "Same machine: " + Configurations.SERVICE_NAME);
                 }
             }
 
@@ -423,23 +353,23 @@ public class LoginActivity extends AppCompatActivity {
             public void onServiceLost(NsdServiceInfo service) {
                 // When the network service is no longer available.
                 // Internal bookkeeping code goes here.
-                Log.e(TAG, "service lost" + service);
+                Log.e(Configurations.NSD_TAG, "service lost" + service);
             }
 
             @Override
             public void onDiscoveryStopped(String serviceType) {
-                Log.i(TAG, "Discovery stopped: " + serviceType);
+                Log.i(Configurations.NSD_TAG, "Discovery stopped: " + serviceType);
             }
 
             @Override
             public void onStartDiscoveryFailed(String serviceType, int errorCode) {
-                Log.e(TAG, "Discovery failed: Error code:" + errorCode);
+                Log.e(Configurations.NSD_TAG, "Discovery failed: Error code:" + errorCode);
                 mNsdManager.stopServiceDiscovery(this);
             }
 
             @Override
             public void onStopDiscoveryFailed(String serviceType, int errorCode) {
-                Log.e(TAG, "Discovery failed: Error code:" + errorCode);
+                Log.e(Configurations.NSD_TAG, "Discovery failed: Error code:" + errorCode);
                 mNsdManager.stopServiceDiscovery(this);
             }
         };
@@ -451,28 +381,24 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onResolveFailed(NsdServiceInfo serviceInfo, int errorCode) {
                 // Called when the resolve fails.  Use the error code to debug.
-                Log.e(TAG, "Resolve failed" + errorCode);
+                Log.e(Configurations.NSD_TAG, "Resolve failed" + errorCode);
             }
 
             @Override
             public void onServiceResolved(NsdServiceInfo serviceInfo) {
-                Log.e(TAG, "Resolve Succeeded. " + serviceInfo);
+                Log.e(Configurations.NSD_TAG, "Resolve Succeeded. " + serviceInfo);
                 port = serviceInfo.getPort();
                 host = serviceInfo.getHost();
                 NetworkInfoHolder.getInstance().setData(host);
                 NetworkInfoHolder.getInstance().setPort(port);
-                loginURL = "http://" + host.getHostAddress()  + ":" + port  + "/hyrax-server/rest/checkuser/";
-                SharedPreferences pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
-                pref.edit().putString("server_url", "http://" + host.getHostAddress()  + ":" + port  + "/hyrax-server/rest/").commit();
-                Log.d(TAG,  NetworkInfoHolder.getInstance().getHost().getHostAddress());
-                CharSequence detected =  "Server detected";
-                Toast toast = Toast.makeText(context,detected,Toast.LENGTH_SHORT);
-                toast.show();
+                Log.d(Configurations.NSD_TAG,  NetworkInfoHolder.getInstance().getHost().getHostAddress());
+                Configurations.storeURL(context,Configurations.buildURL());
+                Toast.makeText(context,"Server detected",Toast.LENGTH_SHORT).show();
 
                 mNsdManager.stopServiceDiscovery(mDiscoveryListener);
 
-                if (serviceInfo.getServiceName().equals(mServiceName)) {
-                    Log.d(TAG, "Same IP.");
+                if (serviceInfo.getServiceName().equals(Configurations.SERVICE_NAME)) {
+                    Log.d(Configurations.NSD_TAG, "Same IP.");
                     return;
                 }
             }

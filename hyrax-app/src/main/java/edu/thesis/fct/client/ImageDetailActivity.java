@@ -3,14 +3,12 @@ package edu.thesis.fct.client;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
@@ -33,6 +31,7 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
+import edu.thesis.fct.client.config.Configurations;
 import uk.co.senab.photoview.PhotoView;
 
 /**
@@ -62,18 +61,9 @@ public class ImageDetailActivity extends AppCompatActivity {
 
         imagePath = getIntent().getStringExtra("image");
         File file = new File(imagePath);
-        SharedPreferences pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
-        username = pref.getString("username", null);
-
-
-        NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
-        Log.d("NIH", nih.getHost() + "");
-        if (nih.getHost() != null){
-            untagURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/untag/";
-        }
+        username = Configurations.getUsername(context);
 
         toolbar.setTitle(file.getName().split("\\.")[0]);
-
 
         Glide.with(this).load(new File(imagePath))
                 .thumbnail(0.5f)
@@ -122,7 +112,7 @@ public class ImageDetailActivity extends AppCompatActivity {
     }
 
     private void untagMe(){
-        StringRequest stringRequest = new StringRequest(Request.Method.POST, untagURL,
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, Configurations.getActionURL(Configurations.ACTION.UNTAG),
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {

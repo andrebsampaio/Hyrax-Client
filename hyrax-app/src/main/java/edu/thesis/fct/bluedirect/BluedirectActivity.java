@@ -64,15 +64,14 @@ import edu.thesis.fct.bluedirect.ui.DeviceDetailFragment;
 import edu.thesis.fct.bluedirect.ui.DeviceListFragment;
 import edu.thesis.fct.bluedirect.ui.DeviceListFragment.DeviceActionListener;
 import edu.thesis.fct.bluedirect.wifi.WiFiDirectBroadcastReceiver;
-import edu.thesis.fct.client.face_processing.FaceProcessing;
-import edu.thesis.fct.client.face_processing.FaceRecognitionAsync;
+import edu.thesis.fct.client.faceproc.FaceProcessing;
+import edu.thesis.fct.client.faceproc.FaceRecognitionAsync;
 import edu.thesis.fct.client.GalleryActivity;
 import edu.thesis.fct.client.ImageModel;
 import edu.thesis.fct.client.InstrumentationUtils;
 import edu.thesis.fct.client.ListingSingleton;
 import edu.thesis.fct.client.LoginActivity;
 import edu.thesis.fct.client.R;
-import edu.thesis.fct.client.RecognitionEngineHolder;
 
 /**
  * An activity that uses WiFi Direct APIs to discover and connect with available

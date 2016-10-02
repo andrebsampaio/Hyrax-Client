@@ -19,7 +19,6 @@ import edu.thesis.fct.bluedirect.router.MeshNetworkManager;
  */
 public class BluetoothBroadcastReceiver extends BroadcastReceiver {
 
-    private static final UUID UUID_KEY = UUID.fromString("fa87c0d0-afac-11de-8a39-0800200c9a66");
     private BluetoothAdapter mBluetoothAdapter;
     private Queue<BluetoothDevice> foundDevices = new LinkedList<>();
     private List<String> seenDevices = new LinkedList<>();
@@ -70,9 +69,6 @@ public class BluetoothBroadcastReceiver extends BroadcastReceiver {
                         }
                         while (!foundDevices.isEmpty()){
                             BluetoothDevice deviceTmp = foundDevices.remove();
-                            /*if (MeshNetworkManager.getSelf() != null && !BluetoothServer.establishingBridge && !btSender.establishingBridge){
-                                btSender.sendPacket(deviceTmp.getAddress(),MeshNetworkManager.getSelf().getGroupID(),false);
-                            }*/
 
                             if (BluedirectActivity.btService.getState() != BTService.STATE_CONNECTED && !seenDevices.contains(deviceTmp.getAddress())){
                                 BluedirectActivity.btService.connect(deviceTmp,true);

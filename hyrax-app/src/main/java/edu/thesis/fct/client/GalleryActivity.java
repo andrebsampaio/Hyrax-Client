@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.support.v7.app.AlertDialog;
@@ -14,7 +13,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
@@ -38,24 +36,18 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import edu.thesis.fct.bluedirect.BluedirectAPI;
-import edu.thesis.fct.client.face_processing.FaceRecognitionAsync;
+import edu.thesis.fct.client.config.Configurations;
 
 public class GalleryActivity extends AppCompatActivity {
 
     private static final long MAX_FILE_SIZE = Long.MAX_VALUE ;
-    public static final String HYRAX_PATH = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "Hyrax";
-    List<Object> ids = new ArrayList<>();
     RecyclerView recyclerView;
     Activity activity;
-    String searchURL;
-    String imagesURL;
-    String registrationURL;
     static GalleryAdapter mAdapter;
     List<File> takenPhotos;
     boolean registration;
     SharedPreferences pref;
     Context context;
-    int trainWidth = 0; int trainHeight = 0;
     final static String lineEnd = "\r\n";
     final static String twoHyphens = "--";
     final static String boundary = "*****";
@@ -81,15 +73,14 @@ public class GalleryActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setTitle("Gallery");
+        setTitle(Configurations.GALLERY);
         Bundle b=this.getIntent().getExtras();
-        registration = b.getBoolean("isRegistration");
+        registration = b.getBoolean(Configurations.KEYS.REGISTRATION.toString());
         activity = this;
         setContentView(R.layout.gallery_layout);
-        // Find the toolbar view inside the activity layout
+
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbarGallery);
-        // Sets the Toolbar to act as the ActionBar for this Activity window.
-        // Make sure the toolbar exists in the activity and is not null
+
         setSupportActionBar(toolbar);
         isVisible = true;
         context = this;
@@ -106,26 +97,16 @@ public class GalleryActivity extends AppCompatActivity {
             dialog.show();
             takenPhotos = new ArrayList<>();
             if (registration){
-                String[] array=b.getStringArray("images_path");
+                String[] array=b.getStringArray(Configurations.KEYS.IMAGE_PATH.toString());
                 if (array != null){
                     for (String s : array){
                         takenPhotos.add(new File(s));
                     }
                 }
             }
-
-            user = b.getString("username");
+            user = b.getString(Configurations.KEYS.USERNAME.toString());
         } else {
-            pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
-            user = pref.getString("username", null);
-        }
-
-        NetworkInfoHolder nih = NetworkInfoHolder.getInstance();
-        Log.d("NIH", nih.getHost() + "");
-        if (nih.getHost() != null){
-            searchURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/search/";
-            registrationURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/register/";
-            imagesURL = "http://" + nih.getHost().getHostAddress()  + ":" + nih.getPort()  + "/hyrax-server/rest/images/";
+            Configurations.getUsername(context);
         }
 
         recyclerView = (RecyclerView) findViewById(R.id.image_grid);
@@ -173,7 +154,7 @@ public class GalleryActivity extends AppCompatActivity {
                     progressDialog.setCanceledOnTouchOutside(false);
                     progressDialog.setMessage("Processing your face :)");
                     progressDialog.show();
-                    sendRegistration(registrationURL);
+                    sendRegistration(Configurations.getActionURL(Configurations.ACTION.REGISTER));
                 } else {
                     Toast.makeText(this, "Please select " + (MIN_PHOTOS - mAdapter.getSelectedImages().size()) + " more photos", Toast.LENGTH_LONG).show();
                 }
@@ -203,11 +184,11 @@ public class GalleryActivity extends AppCompatActivity {
 
     private void sendRegistration(String url) {
         List<File> images = mAdapter.getSelectedImages();
-        File zippedImages = zip(images, Environment.getExternalStorageDirectory() + File.separator +  user + ".zip");
+        File zippedImages = zip(images, Configurations.STORAGE + File.separator +  user + Configurations.ZIP);
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(bos);
         try {
-            buildPart(dos, read(zippedImages),  user + ".zip");
+            buildPart(dos, read(zippedImages),  user + Configurations.ZIP);
             dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
             byte [] multipartBody = bos.toByteArray();
 
@@ -216,13 +197,8 @@ public class GalleryActivity extends AppCompatActivity {
                 public void onResponse(NetworkResponse response) {
                     Toast.makeText(getParent(), "Processing done, enjoy!", Toast.LENGTH_LONG).show();
                     System.out.println(new String (response.data));
-                    //Intent myIntent = new Intent(getParent(), MainActivity.class);
-                    pref = getApplicationContext().getSharedPreferences("MyPref", MODE_PRIVATE);
-                    SharedPreferences.Editor editor = pref.edit();
-                    editor.putString("username", user);
-                    editor.commit();
+                    Configurations.setUsername(context,user);
                     progressDialog.dismiss();
-                    //startActivity(myIntent);
                 }
             }, new Response.ErrorListener() {
                 @Override
@@ -306,12 +282,12 @@ public class GalleryActivity extends AppCompatActivity {
 
 
     private List<File> getHyraxPhotos(){
-        File file = new File(Environment.getExternalStorageDirectory().getPath() + File.separator + "Hyrax");
+        File file = new File(Configurations.HYRAX_PATH);
         file.mkdir();
         List<File> res = new ArrayList<>();
         for (File f : file.listFiles()){
             if (f.getName().equals("listing")) continue;
-            res.add(new File(f.getAbsolutePath() + File.separator + f.getName() + ".jpg"));
+            res.add(new File(f.getAbsolutePath() + File.separator + f.getName() + Configurations.JPG));
         }
         return res;
     }
@@ -321,7 +297,7 @@ public class GalleryActivity extends AppCompatActivity {
         protected Void doInBackground(Void... s) {
             utils = new InstrumentationUtils(context);
             utils.startTest();
-            BluedirectAPI.broadcastQuery(user,new File(FaceRecognitionAsync.SAVE_PATH),null,context,BluedirectAPI.FANOUT, BluedirectAPI.BROADCAST);
+            BluedirectAPI.broadcastQuery(user,new File(Configurations.SAVE_PATH),null,context,BluedirectAPI.FANOUT, BluedirectAPI.BROADCAST);
             return null;
         }
 
