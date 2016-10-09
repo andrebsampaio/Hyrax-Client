@@ -64,6 +64,7 @@ import edu.thesis.fct.bluedirect.ui.DeviceDetailFragment;
 import edu.thesis.fct.bluedirect.ui.DeviceListFragment;
 import edu.thesis.fct.bluedirect.ui.DeviceListFragment.DeviceActionListener;
 import edu.thesis.fct.bluedirect.wifi.WiFiDirectBroadcastReceiver;
+import edu.thesis.fct.client.config.Configurations;
 import edu.thesis.fct.client.faceproc.FaceProcessing;
 import edu.thesis.fct.client.faceproc.FaceRecognitionAsync;
 import edu.thesis.fct.client.GalleryActivity;
@@ -84,17 +85,14 @@ import edu.thesis.fct.client.R;
  */
 public class BluedirectActivity extends AppCompatActivity implements ChannelListener, DeviceActionListener {
 
-	public static final String TAG = "wifidirectdemo";
+	public static final String TAG = "Bluedirect";
 	private WifiP2pManager manager;
 	private boolean isWifiP2pEnabled = false;
 	private boolean retryChannel = false;
 	private static final int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
 	private final IntentFilter intentFilter = new IntentFilter();
-	private final IntentFilter wifiIntentFilter = new IntentFilter();
-	private final IntentFilter btIntentFilter = new IntentFilter();
 	private Channel channel;
 	private BroadcastReceiver receiver = null;
-	private BluetoothBroadcastReceiver btReceiver = null;
 	public static BTService btService = null;
 	private BroadcastReceiver mRegistrationBroadcastReceiver;
 	private boolean isReceiverRegistered;
@@ -264,7 +262,6 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 		System.arraycopy(data,0,size,0,4);
 		int usersize = byteToInt(size);
 		System.arraycopy(data,4,size,0,4);
-		int modelsize = byteToInt(size);
 
 		List<byte[]> res = new ArrayList<>();
 		int offset = 8;
@@ -302,26 +299,6 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 		return null;
 	}
 
-	private void storeBitmap(Bitmap bmp, File filename){
-		FileOutputStream out = null;
-		try {
-			filename.getParentFile().mkdirs();
-			out = new FileOutputStream(filename);
-			bmp.compress(Bitmap.CompressFormat.JPEG, 100, out); // bmp is your Bitmap instance
-			// PNG is a lossless format, the compression factor (100) is ignored
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			try {
-				if (out != null) {
-					out.close();
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-
 	private void registerReceiver(Context context){
 		if(!isReceiverRegistered) {
 			LocalBroadcastManager.getInstance(context).registerReceiver(mRegistrationBroadcastReceiver,
@@ -351,7 +328,7 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 		final List<ImageModel> toSend = new ArrayList<>();
 		if (template != null){
 			try {
-				String modelpath = FaceRecognitionAsync.RECOG_PATH + username + ".gz";
+				String modelpath = Configurations.RECOG_PATH + username + ".gz";
 				new File(modelpath).getParentFile().mkdirs();
 				IOUtils.copy(new ByteArrayInputStream(template), new FileOutputStream(modelpath));
 				FaceProcessing.loadEngineFromFile(modelpath);
@@ -362,20 +339,10 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 			}
 		}
 
-		/*for (ImageModel i : ListingSingleton.getInstance().getImages().values()){
-			for (String p : i.getPeople()){
-				if (p.equals(username)){
-					toSend.add(i);
-					break;
-				}
-			}
-		}*/
-
-		toSend.addAll(/*FaceProcessing.recognizeInPath(*/new ArrayList<>(ListingSingleton.getInstance().getImages().values())/*, RecognitionEngineHolder.getInstance().getEngine(),context)*/);
+		toSend.addAll(new ArrayList<>(ListingSingleton.getInstance().getImages().values()));
 
 		if (!BluedirectActivity.fallback) {
 			Sender.queuePacket(new Packet(Packet.NEW_ID,Packet.TYPE.FILE, convertListToByteArray(toSend), rcvMac, WiFiDirectBroadcastReceiver.MAC, btRcvMac, Configuration.getBluetoothSelfMac(context)));
-			//BluedirectAPI.sendToClient(intToBytes(toSend.size()), rcvMac, btRcvMac, Packet.TYPE.FILE_COUNT,context);
 		}else{
 			FBSender.queuePacket(new Packet(Packet.NEW_ID,Packet.TYPE.FB_COUNT,intToBytes(toSend.size()),rcvMac,Configuration.getFallbackId((Activity)context),null,null),null);
 			for (ImageModel i : toSend){
@@ -402,13 +369,6 @@ public class BluedirectActivity extends AppCompatActivity implements ChannelList
 		else {
 			try {
 				FileSender.sendFile(rcvMac, file,Configuration.getServerURL(context) + "upload", context, img);
-				/*FileSender.setOnFileReceivedListener(new FileSender.onFileReceivedListener() {
-					@Override
-					public void onFileReceived(NetworkResponse response, ImageModel image) {
-						final String id = new String(response.data);
-						FBSender.queuePacket(new Packet(Packet.NEW_ID,Packet.TYPE.FB_DATA,(Configuration.getServerURL(context) + "images/" + id).getBytes(), rcvMac, Configuration.getFallbackId((Activity)context),null,null),image);
-					}
-				});*/
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
