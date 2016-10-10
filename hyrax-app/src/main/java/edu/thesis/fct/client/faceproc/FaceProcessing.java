@@ -383,7 +383,7 @@ public class FaceProcessing {
         Mat gray_image_mat = imread(image.getAbsolutePath(),CV_LOAD_IMAGE_GRAYSCALE);
         opencv_core.IplImage gray_image_iipl = cvLoadImage(image.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
         try {
-            return FlandMarkJava.alignImage(Configurations.RECOG_PATH,gray_image_mat,gray_image_iipl,faceClassifier,model,image.getAbsolutePath(),eyeClassifier, isTraining);
+            return FlandMark.alignImage(Configurations.RECOG_PATH,gray_image_mat,gray_image_iipl,faceClassifier,model,image.getAbsolutePath(),eyeClassifier, isTraining);
         } catch (Exception e) {
             e.printStackTrace();
         }
